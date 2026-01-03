@@ -1,0 +1,24 @@
+{
+  "name": "aurora",
+  "version": "1.0.0",
+  "description": "> **Remasterização Visual para Servidores Debian 13 (Trixie)**",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/helton-godoy/aurora.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/helton-godoy/aurora/issues"
+  },
+  "homepage": "https://github.com/helton-godoy/aurora#readme",
+  "dependencies": {
+    "task-master-ai": "^0.40.1"
+  }
+}
