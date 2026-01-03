@@ -1,0 +1,7 @@
+# Configuração Padrão do Aurora
+theme_dir: "./themes"
+config_dir: "~/.config/aurora"
+default_shell: "auto"
+persistence_enabled: true
+backup_enabled: true
+check_contrast: true
