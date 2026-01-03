@@ -150,29 +150,29 @@ STATUS[arrow_left]="⇐"
 
 # Detectar largura e altura do terminal
 get_terminal_dimensions() {
-    local cols=$(tput cols 2>/dev/null || echo "80")
-    local lines=$(tput lines 2>/dev/null || echo "24")
-    echo "$cols $lines"
+	local cols=$(tput cols 2>/dev/null || echo "80")
+	local lines=$(tput lines 2>/dev/null || echo "24")
+	echo "$cols $lines"
 }
 
 # Calcular layout dinâmico baseado no terminal
 calculate_layout() {
-    local cols=$(get_terminal_dimensions | cut -d' ' -f1)
-    
-    # Definir layouts baseados na largura
-    if (( cols >= 120 )); then
-        echo "ultra_wide"
-    elif (( cols >= 100 )); then
-        echo "wide"
-    elif (( cols >= 80 )); then
-        echo "standard"
-    elif (( cols >= 60 )); then
-        echo "narrow"
-    elif (( cols >= 40 )); then
-        echo "minimal"
-    else
-        echo "tiny"
-    fi
+	local cols=$(get_terminal_dimensions | cut -d' ' -f1)
+
+	# Definir layouts baseados na largura
+	if ((cols >= 120)); then
+		echo "ultra_wide"
+	elif ((cols >= 100)); then
+		echo "wide"
+	elif ((cols >= 80)); then
+		echo "standard"
+	elif ((cols >= 60)); then
+		echo "narrow"
+	elif ((cols >= 40)); then
+		echo "minimal"
+	else
+		echo "tiny"
+	fi
 }
 
 # ============================================================================
@@ -182,220 +182,220 @@ calculate_layout() {
 # Função auxiliar: calcula a largura visual de uma string considerando Unicode
 # Usa wc -L que calcula corretamente a largura de display em terminais modernos
 get_visual_width() {
-    local str="$1"
+	local str="$1"
 
-    # wc -L retorna a largura visual máxima da linha
-    # Isso já considera caracteres de largura dupla em terminais com suporte UTF-8
-    printf '%s' "$str" | wc -L
+	# wc -L retorna a largura visual máxima da linha
+	# Isso já considera caracteres de largura dupla em terminais com suporte UTF-8
+	printf '%s' "$str" | wc -L
 }
 
 # Função auxiliar: quebra texto em linhas respeitando largura visual
 wrap_text_visual() {
-    local text="$1"
-    local max_width="$2"
-    local lines=()
-    local current_line=""
-    local current_width=0
+	local text="$1"
+	local max_width="$2"
+	local lines=()
+	local current_line=""
+	local current_width=0
 
-    # Primeiro, processar quebras de linha explícitas
-    while IFS= read -r paragraph || [[ -n "$paragraph" ]]; do
-        # Se parágrafo vazio, adicionar linha vazia
-        if [[ -z "$paragraph" ]]; then
-            if [[ -n "$current_line" ]]; then
-                lines+=("$current_line")
-                current_line=""
-                current_width=0
-            fi
-            lines+=("")
-            continue
-        fi
+	# Primeiro, processar quebras de linha explícitas
+	while IFS= read -r paragraph || [[ -n "$paragraph" ]]; do
+		# Se parágrafo vazio, adicionar linha vazia
+		if [[ -z "$paragraph" ]]; then
+			if [[ -n "$current_line" ]]; then
+				lines+=("$current_line")
+				current_line=""
+				current_width=0
+			fi
+			lines+=("")
+			continue
+		fi
 
-        # Processar palavras do parágrafo
-        local words=()
-        read -ra words <<< "$paragraph"
+		# Processar palavras do parágrafo
+		local words=()
+		read -ra words <<<"$paragraph"
 
-        for word in "${words[@]}"; do
-            local word_width
-            word_width=$(get_visual_width "$word")
+		for word in "${words[@]}"; do
+			local word_width
+			word_width=$(get_visual_width "$word")
 
-            if (( current_width == 0 )); then
-                # Primeira palavra da linha
-                current_line="$word"
-                current_width=$word_width
-            elif (( current_width + 1 + word_width <= max_width )); then
-                # Palavra cabe na linha atual
-                current_line="$current_line $word"
-                current_width=$((current_width + 1 + word_width))
-            else
-                # Palavra não cabe, iniciar nova linha
-                lines+=("$current_line")
-                current_line="$word"
-                current_width=$word_width
-            fi
-        done
-    done <<< "$text"
+			if ((current_width == 0)); then
+				# Primeira palavra da linha
+				current_line="$word"
+				current_width=$word_width
+			elif ((current_width + 1 + word_width <= max_width)); then
+				# Palavra cabe na linha atual
+				current_line="$current_line $word"
+				current_width=$((current_width + 1 + word_width))
+			else
+				# Palavra não cabe, iniciar nova linha
+				lines+=("$current_line")
+				current_line="$word"
+				current_width=$word_width
+			fi
+		done
+	done <<<"$text"
 
-    # Adicionar última linha se houver
-    if [[ -n "$current_line" ]]; then
-        lines+=("$current_line")
-    fi
+	# Adicionar última linha se houver
+	if [[ -n "$current_line" ]]; then
+		lines+=("$current_line")
+	fi
 
-    # Retornar linhas separadas por newline
-    printf '%s\n' "${lines[@]}"
+	# Retornar linhas separadas por newline
+	printf '%s\n' "${lines[@]}"
 }
 
 # Função para criar caixa com estilo personalizável (Versão Corrigida)
 create_fancy_box() {
-    local title="$1"
-    local content="$2"
-    local style="${3:-light}"
-    local border_color="${4:-106;73;40}"
-    local fill_color="${5:-190;173;162}"
-    local width="${6:-auto}"
+	local title="$1"
+	local content="$2"
+	local style="${3:-light}"
+	local border_color="${4:-106;73;40}"
+	local fill_color="${5:-190;173;162}"
+	local width="${6:-auto}"
 
-    # Obter dimensões do terminal
-    local cols
-    cols=$(get_terminal_dimensions | cut -d' ' -f1)
+	# Obter dimensões do terminal
+	local cols
+	cols=$(get_terminal_dimensions | cut -d' ' -f1)
 
-    # Calcular largura da caixa
-    if [[ "$width" == "auto" ]]; then
-        width=$((cols - 4))
+	# Calcular largura da caixa
+	if [[ "$width" == "auto" ]]; then
+		width=$((cols - 4))
 
-        # Lógica de Largura Segura:
-        # Só força o mínimo de 50 se o terminal tiver espaço
-        if (( width < 50 )); then
-            if (( cols >= 54 )); then
-                width=50
-            fi
-        fi
+		# Lógica de Largura Segura:
+		# Só força o mínimo de 50 se o terminal tiver espaço
+		if ((width < 50)); then
+			if ((cols >= 54)); then
+				width=50
+			fi
+		fi
 
-        # Limite máximo para monitores ultrawide
-        ((width > 90)) && width=90
-    fi
+		# Limite máximo para monitores ultrawide
+		((width > 90)) && width=90
+	fi
 
-    # Proteção de conteúdo vazio
-    if [[ -z "$content" ]]; then content=" "; fi
+	# Proteção de conteúdo vazio
+	if [[ -z "$content" ]]; then content=" "; fi
 
-    # ===============================================
-    # CÁLCULOS DE LARGURA CORRIGIDOS
-    # ===============================================
-    # Largura total da caixa = width
-    # Espaço interno (entre bordas verticais) = width - 2
-    # Margem esquerda para conteúdo = 1
-    # Largura máxima do texto de conteúdo = width - 2 - 1 = width - 3
+	# ===============================================
+	# CÁLCULOS DE LARGURA CORRIGIDOS
+	# ===============================================
+	# Largura total da caixa = width
+	# Espaço interno (entre bordas verticais) = width - 2
+	# Margem esquerda para conteúdo = 1
+	# Largura máxima do texto de conteúdo = width - 2 - 1 = width - 3
 
-    local box_inner_width=$((width - 2))
-    local content_text_width=$((box_inner_width - 1))  # Descontando margem esquerda de 1
+	local box_inner_width=$((width - 2))
+	local content_text_width=$((box_inner_width - 1)) # Descontando margem esquerda de 1
 
-    # Processar conteúdo: converter \n literal para newline real e fazer wrap
-    local processed_content
-    processed_content=$(echo -e "$content")
+	# Processar conteúdo: converter \n literal para newline real e fazer wrap
+	local processed_content
+	processed_content=$(echo -e "$content")
 
-    # Aplicar word-wrap visual com largura correta
-    local wrapped_content
-    wrapped_content=$(wrap_text_visual "$processed_content" "$content_text_width")
+	# Aplicar word-wrap visual com largura correta
+	local wrapped_content
+	wrapped_content=$(wrap_text_visual "$processed_content" "$content_text_width")
 
-    # Converter para array de linhas
-    local content_lines=()
-    while IFS= read -r line; do
-        content_lines+=("$line")
-    done <<< "$wrapped_content"
+	# Converter para array de linhas
+	local content_lines=()
+	while IFS= read -r line; do
+		content_lines+=("$line")
+	done <<<"$wrapped_content"
 
-    # Obter caracteres do estilo
-    local tl="${BOX_CHARS[${style}_tl]}"
-    local tr="${BOX_CHARS[${style}_tr]}"
-    local bl="${BOX_CHARS[${style}_bl]}"
-    local br="${BOX_CHARS[${style}_br]}"
-    local h="${BOX_CHARS[${style}_h]}"
-    local v="${BOX_CHARS[${style}_v]}"
-    local mid_l="${BOX_CHARS[${style}_mid_l]}"
-    local mid_r="${BOX_CHARS[${style}_mid_r]}"
+	# Obter caracteres do estilo
+	local tl="${BOX_CHARS[${style}_tl]}"
+	local tr="${BOX_CHARS[${style}_tr]}"
+	local bl="${BOX_CHARS[${style}_bl]}"
+	local br="${BOX_CHARS[${style}_br]}"
+	local h="${BOX_CHARS[${style}_h]}"
+	local v="${BOX_CHARS[${style}_v]}"
+	local mid_l="${BOX_CHARS[${style}_mid_l]}"
+	local mid_r="${BOX_CHARS[${style}_mid_r]}"
 
-    # Gerar linhas horizontais (box_inner_width caracteres)
-    local horizontal_line
-    horizontal_line=$(printf "%.0s$h" $(seq 1 "$box_inner_width"))
+	# Gerar linhas horizontais (box_inner_width caracteres)
+	local horizontal_line
+	horizontal_line=$(printf "%.0s$h" $(seq 1 "$box_inner_width"))
 
-    # ===============================================
-    # TÍTULO (centralizado, ocupa todo box_inner_width)
-    # ===============================================
-    local title_visual_width
-    title_visual_width=$(get_visual_width "$title")
-    local max_title_len=$((box_inner_width - 2))  # Deixar pelo menos 1 espaço de cada lado
+	# ===============================================
+	# TÍTULO (centralizado, ocupa todo box_inner_width)
+	# ===============================================
+	local title_visual_width
+	title_visual_width=$(get_visual_width "$title")
+	local max_title_len=$((box_inner_width - 2)) # Deixar pelo menos 1 espaço de cada lado
 
-    # Truncar título se necessário
-    if (( title_visual_width > max_title_len )); then
-        local truncated=""
-        local char_count=0
-        local i=0
-        local len=${#title}
+	# Truncar título se necessário
+	if ((title_visual_width > max_title_len)); then
+		local truncated=""
+		local char_count=0
+		local i=0
+		local len=${#title}
 
-        while (( i < len && char_count < max_title_len - 1 )); do
-            local char="${title:i:1}"
-            local byte
-            byte=$(printf '%d' "'$char" 2>/dev/null || echo 0)
-            local char_width=1
+		while ((i < len && char_count < max_title_len - 1)); do
+			local char="${title:i:1}"
+			local byte
+			byte=$(printf '%d' "'$char" 2>/dev/null || echo 0)
+			local char_width=1
 
-            if (( byte >= 240 )); then
-                char="${title:i:4}"
-                char_width=2
-                i=$((i + 4))
-            elif (( byte >= 224 )); then
-                char="${title:i:3}"
-                char_width=1
-                i=$((i + 3))
-            elif (( byte >= 192 )); then
-                char="${title:i:2}"
-                i=$((i + 2))
-            else
-                i=$((i + 1))
-            fi
+			if ((byte >= 240)); then
+				char="${title:i:4}"
+				char_width=2
+				i=$((i + 4))
+			elif ((byte >= 224)); then
+				char="${title:i:3}"
+				char_width=1
+				i=$((i + 3))
+			elif ((byte >= 192)); then
+				char="${title:i:2}"
+				i=$((i + 2))
+			else
+				i=$((i + 1))
+			fi
 
-            if (( char_count + char_width <= max_title_len - 1 )); then
-                truncated+="$char"
-                char_count=$((char_count + char_width))
-            else
-                break
-            fi
-        done
-        title="${truncated}…"
-        title_visual_width=$(get_visual_width "$title")
-    fi
+			if ((char_count + char_width <= max_title_len - 1)); then
+				truncated+="$char"
+				char_count=$((char_count + char_width))
+			else
+				break
+			fi
+		done
+		title="${truncated}…"
+		title_visual_width=$(get_visual_width "$title")
+	fi
 
-    # Cálculo do padding do título para centralização
-    local title_left_pad=$(( (box_inner_width - title_visual_width) / 2 ))
-    local title_right_pad=$((box_inner_width - title_visual_width - title_left_pad))
-    (( title_left_pad < 0 )) && title_left_pad=0
-    (( title_right_pad < 0 )) && title_right_pad=0
+	# Cálculo do padding do título para centralização
+	local title_left_pad=$(((box_inner_width - title_visual_width) / 2))
+	local title_right_pad=$((box_inner_width - title_visual_width - title_left_pad))
+	((title_left_pad < 0)) && title_left_pad=0
+	((title_right_pad < 0)) && title_right_pad=0
 
-    # ===============================================
-    # RENDERIZAÇÃO
-    # ===============================================
+	# ===============================================
+	# RENDERIZAÇÃO
+	# ===============================================
 
-    # Linha de topo
-    echo -e "\033[38;2;${border_color}m${tl}${horizontal_line}${tr}\033[0m"
+	# Linha de topo
+	echo -e "\033[38;2;${border_color}m${tl}${horizontal_line}${tr}\033[0m"
 
-    # Título (centralizado)
-    echo -e "\033[38;2;${border_color}m${v}\033[0m\033[38;2;${fill_color}m$(printf "%*s" "$title_left_pad" "")${title}$(printf "%*s" "$title_right_pad" "")\033[38;2;${border_color}m${v}\033[0m"
+	# Título (centralizado)
+	echo -e "\033[38;2;${border_color}m${v}\033[0m\033[38;2;${fill_color}m$(printf "%*s" "$title_left_pad" "")${title}$(printf "%*s" "$title_right_pad" "")\033[38;2;${border_color}m${v}\033[0m"
 
-    # Divisor
-    echo -e "\033[38;2;${border_color}m${mid_l}${horizontal_line}${mid_r}\033[0m"
+	# Divisor
+	echo -e "\033[38;2;${border_color}m${mid_l}${horizontal_line}${mid_r}\033[0m"
 
-    # Conteúdo (alinhado à esquerda com margem de 1)
-    for line in "${content_lines[@]}"; do
-        local line_visual_width
-        line_visual_width=$(get_visual_width "$line")
+	# Conteúdo (alinhado à esquerda com margem de 1)
+	for line in "${content_lines[@]}"; do
+		local line_visual_width
+		line_visual_width=$(get_visual_width "$line")
 
-        # Margem esquerda = 1 espaço
-        # Padding direito = box_inner_width - 1 - line_visual_width
-        local right_pad=$((box_inner_width - 1 - line_visual_width))
-        (( right_pad < 0 )) && right_pad=0
+		# Margem esquerda = 1 espaço
+		# Padding direito = box_inner_width - 1 - line_visual_width
+		local right_pad=$((box_inner_width - 1 - line_visual_width))
+		((right_pad < 0)) && right_pad=0
 
-        # Renderizar linha de conteúdo
-        echo -e "\033[38;2;${border_color}m${v}\033[0m\033[38;2;${fill_color}m $(printf "%s%*s" "$line" "$right_pad" "")\033[38;2;${border_color}m${v}\033[0m"
-    done
+		# Renderizar linha de conteúdo
+		echo -e "\033[38;2;${border_color}m${v}\033[0m\033[38;2;${fill_color}m $(printf "%s%*s" "$line" "$right_pad" "")\033[38;2;${border_color}m${v}\033[0m"
+	done
 
-    # Linha de base
-    echo -e "\033[38;2;${border_color}m${bl}${horizontal_line}${br}\033[0m"
+	# Linha de base
+	echo -e "\033[38;2;${border_color}m${bl}${horizontal_line}${br}\033[0m"
 }
 
 # ============================================================================
@@ -404,28 +404,28 @@ create_fancy_box() {
 
 # Animação de carregamento
 show_loading_animation() {
-    local message="$1"
-    local duration="${2:-3}"
-    local chars=("◐" "◓" "◑" "◒")
-    
-    for ((i=0; i<duration*4; i++)); do
-        local char="${chars[$((i % 4))]}"
-        printf "\r\033[38;2;106;73;40m${char}\033[0m \033[38;2;190;173;162m$message\033[0m"
-        sleep 0.25
-    done
-    printf "\r\033[38;2;106;73;40m✓\033[0m \033[38;2;190;173;162m$message\033[0m\n"
+	local message="$1"
+	local duration="${2:-3}"
+	local chars=("◐" "◓" "◑" "◒")
+
+	for ((i = 0; i < duration * 4; i++)); do
+		local char="${chars[$((i % 4))]}"
+		printf "\r\033[38;2;106;73;40m${char}\033[0m \033[38;2;190;173;162m$message\033[0m"
+		sleep 0.25
+	done
+	printf "\r\033[38;2;106;73;40m✓\033[0m \033[38;2;190;173;162m$message\033[0m\n"
 }
 
 # Animação de digitação
 typewriter_effect() {
-    local text="$1"
-    local speed="${2:-0.05}"
-    
-    for ((i=0; i<${#text}; i++)); do
-        echo -n "${text:$i:1}"
-        sleep "$speed"
-    done
-    echo
+	local text="$1"
+	local speed="${2:-0.05}"
+
+	for ((i = 0; i < ${#text}; i++)); do
+		echo -n "${text:$i:1}"
+		sleep "$speed"
+	done
+	echo
 }
 
 # ============================================================================
@@ -434,168 +434,168 @@ typewriter_effect() {
 
 # Banner principal com estilo artístico
 show_fancy_banner() {
-    clear
-    local cols
-    cols=$(get_terminal_dimensions | cut -d' ' -f1)
+	clear
+	local cols
+	cols=$(get_terminal_dimensions | cut -d' ' -f1)
 
-    # Definir largura do banner baseado no terminal
-    local banner_width=$((cols - 4))
-    ((banner_width < 50)) && banner_width=50
-    ((banner_width > 100)) && banner_width=100
+	# Definir largura do banner baseado no terminal
+	local banner_width=$((cols - 4))
+	((banner_width < 50)) && banner_width=50
+	((banner_width > 100)) && banner_width=100
 
-    # Textos do banner
-    local title="🍫 AURORA v$SCRIPT_VERSION"
-    local subtitle="Gerenciador de Temas Visuais Avançado"
-    local theme_line="Tema: Ganache (Chocolate) ✦"
+	# Textos do banner
+	local title="🍫 AURORA v$SCRIPT_VERSION"
+	local subtitle="Gerenciador de Temas Visuais Avançado"
+	local theme_line="Tema: Ganache (Chocolate) ✦"
 
-    # Calcular larguras visuais CORRETAMENTE
-    local title_visual_width
-    title_visual_width=$(get_visual_width "$title")
-    local subtitle_visual_width
-    subtitle_visual_width=$(get_visual_width "$subtitle")
-    local theme_visual_width
-    theme_visual_width=$(get_visual_width "$theme_line")
+	# Calcular larguras visuais CORRETAMENTE
+	local title_visual_width
+	title_visual_width=$(get_visual_width "$title")
+	local subtitle_visual_width
+	subtitle_visual_width=$(get_visual_width "$subtitle")
+	local theme_visual_width
+	theme_visual_width=$(get_visual_width "$theme_line")
 
-    # Gerar linha horizontal (banner_width - 2 para os cantos)
-    local h
-    h=$(printf "═%.0s" $(seq 1 $((banner_width - 2))))
+	# Gerar linha horizontal (banner_width - 2 para os cantos)
+	local h
+	h=$(printf "═%.0s" $(seq 1 $((banner_width - 2))))
 
-    # Largura interna para conteúdo (sem as bordas verticais)
-    local inner_width=$((banner_width - 2))
+	# Largura interna para conteúdo (sem as bordas verticais)
+	local inner_width=$((banner_width - 2))
 
-    # Topo
-    echo -e "\033[38;2;106;73;40m┏${h}┓\033[0m"
+	# Topo
+	echo -e "\033[38;2;106;73;40m┏${h}┓\033[0m"
 
-    # Título centralizado com padding correto
-    local title_left_pad=$(( (inner_width - title_visual_width) / 2 ))
-    local title_right_pad=$((inner_width - title_visual_width - title_left_pad))
-    (( title_left_pad < 0 )) && title_left_pad=0
-    (( title_right_pad < 0 )) && title_right_pad=0
-    echo -e "\033[38;2;106;73;40m┃\033[0m\033[38;2;190;173;162m$(printf "%*s" "$title_left_pad" "")${title}$(printf "%*s" "$title_right_pad" "")\033[38;2;106;73;40m┃\033[0m"
+	# Título centralizado com padding correto
+	local title_left_pad=$(((inner_width - title_visual_width) / 2))
+	local title_right_pad=$((inner_width - title_visual_width - title_left_pad))
+	((title_left_pad < 0)) && title_left_pad=0
+	((title_right_pad < 0)) && title_right_pad=0
+	echo -e "\033[38;2;106;73;40m┃\033[0m\033[38;2;190;173;162m$(printf "%*s" "$title_left_pad" "")${title}$(printf "%*s" "$title_right_pad" "")\033[38;2;106;73;40m┃\033[0m"
 
-    # Subtítulo
-    local subtitle_left_pad=$(( (inner_width - subtitle_visual_width) / 2 ))
-    local subtitle_right_pad=$((inner_width - subtitle_visual_width - subtitle_left_pad))
-    (( subtitle_left_pad < 0 )) && subtitle_left_pad=0
-    (( subtitle_right_pad < 0 )) && subtitle_right_pad=0
-    echo -e "\033[38;2;106;73;40m┃\033[0m\033[38;2;174;153;139m$(printf "%*s" "$subtitle_left_pad" "")${subtitle}$(printf "%*s" "$subtitle_right_pad" "")\033[38;2;106;73;40m┃\033[0m"
+	# Subtítulo
+	local subtitle_left_pad=$(((inner_width - subtitle_visual_width) / 2))
+	local subtitle_right_pad=$((inner_width - subtitle_visual_width - subtitle_left_pad))
+	((subtitle_left_pad < 0)) && subtitle_left_pad=0
+	((subtitle_right_pad < 0)) && subtitle_right_pad=0
+	echo -e "\033[38;2;106;73;40m┃\033[0m\033[38;2;174;153;139m$(printf "%*s" "$subtitle_left_pad" "")${subtitle}$(printf "%*s" "$subtitle_right_pad" "")\033[38;2;106;73;40m┃\033[0m"
 
-    # Linha do tema
-    local theme_left_pad=$(( (inner_width - theme_visual_width) / 2 ))
-    local theme_right_pad=$((inner_width - theme_visual_width - theme_left_pad))
-    (( theme_left_pad < 0 )) && theme_left_pad=0
-    (( theme_right_pad < 0 )) && theme_right_pad=0
-    echo -e "\033[38;2;106;73;40m┃\033[0m\033[38;2;190;173;162m$(printf "%*s" "$theme_left_pad" "")${theme_line}$(printf "%*s" "$theme_right_pad" "")\033[38;2;106;73;40m┃\033[0m"
+	# Linha do tema
+	local theme_left_pad=$(((inner_width - theme_visual_width) / 2))
+	local theme_right_pad=$((inner_width - theme_visual_width - theme_left_pad))
+	((theme_left_pad < 0)) && theme_left_pad=0
+	((theme_right_pad < 0)) && theme_right_pad=0
+	echo -e "\033[38;2;106;73;40m┃\033[0m\033[38;2;190;173;162m$(printf "%*s" "$theme_left_pad" "")${theme_line}$(printf "%*s" "$theme_right_pad" "")\033[38;2;106;73;40m┃\033[0m"
 
-    # Base
-    echo -e "\033[38;2;106;73;40m┗${h}┛\033[0m"
-    echo
+	# Base
+	echo -e "\033[38;2;106;73;40m┗${h}┛\033[0m"
+	echo
 }
 
 # Interface de status com elementos visuais avançados
 show_advanced_status() {
-    show_fancy_banner
-    
-    # Container principal
-    local status_content="📊 STATUS DO SISTEMA\n\n"
-    
-    # Status do Starship com indicador visual
-    if command -v starship &> /dev/null; then
-        local starship_version=$(starship --version 2>/dev/null | head -1)
-        status_content+=" ${STATUS[success]} Starship: Instalado ($starship_version)\n"
-    else
-        status_content+=" ${STATUS[error]} Starship: Não instalado\n"
-    fi
-    
-    # Status do KMSCON
-    if command -v kmscon &> /dev/null; then
-        status_content+=" ${STATUS[success]} KMSCON: Instalado\n"
-    else
-        status_content+=" ${STATUS[error]} KMSCON: Não instalado\n"
-    fi
-    
-    # Status da FiraCode
-    if fc-list | grep -q "FiraCode"; then
-        status_content+=" ${STATUS[success]} FiraCode Nerd Font: Instalada\n"
-    else
-        status_content+=" ${STATUS[error]} FiraCode Nerd Font: Não instalada\n"
-    fi
-    
-    # Tema atual
-    if [[ -f "$STARSHIP_CONFIG" ]]; then
-        local current_theme=$(grep -oP 'background = "\K[^"]*' "$STARSHIP_CONFIG" 2>/dev/null || echo "Padrão")
-        status_content+=" ${STATUS[info]} Tema Atual: $current_theme\n"
-    else
-        status_content+=" ${STATUS[info]} Tema Atual: Padrão do sistema\n"
-    fi
-    
-    # Mostrar caixa de status
-    create_fancy_box "STATUS DO SISTEMA" "$status_content" "light" "106;73;40" "190;173;162" "auto"
-    
-    echo
-    show_quick_commands
+	show_fancy_banner
+
+	# Container principal
+	local status_content="📊 STATUS DO SISTEMA\n\n"
+
+	# Status do Starship com indicador visual
+	if command -v starship &>/dev/null; then
+		local starship_version=$(starship --version 2>/dev/null | head -1)
+		status_content+=" ${STATUS[success]} Starship: Instalado ($starship_version)\n"
+	else
+		status_content+=" ${STATUS[error]} Starship: Não instalado\n"
+	fi
+
+	# Status do KMSCON
+	if command -v kmscon &>/dev/null; then
+		status_content+=" ${STATUS[success]} KMSCON: Instalado\n"
+	else
+		status_content+=" ${STATUS[error]} KMSCON: Não instalado\n"
+	fi
+
+	# Status da FiraCode
+	if fc-list | grep -q "FiraCode"; then
+		status_content+=" ${STATUS[success]} FiraCode Nerd Font: Instalada\n"
+	else
+		status_content+=" ${STATUS[error]} FiraCode Nerd Font: Não instalada\n"
+	fi
+
+	# Tema atual
+	if [[ -f "$STARSHIP_CONFIG" ]]; then
+		local current_theme=$(grep -oP 'background = "\K[^"]*' "$STARSHIP_CONFIG" 2>/dev/null || echo "Padrão")
+		status_content+=" ${STATUS[info]} Tema Atual: $current_theme\n"
+	else
+		status_content+=" ${STATUS[info]} Tema Atual: Padrão do sistema\n"
+	fi
+
+	# Mostrar caixa de status
+	create_fancy_box "STATUS DO SISTEMA" "$status_content" "light" "106;73;40" "190;173;162" "auto"
+
+	echo
+	show_quick_commands
 }
 
 # Interface de ajuda avançada
 show_advanced_help() {
-    show_fancy_banner
-    
-    local help_content="🍫 Sistema de gerenciamento de temas visuais avançado\n\n"
-    help_content+="${DECORATIVE[star_filled]} COMANDOS DISPONÍVEIS:\n\n"
-    help_content+=" • aurora install     ${ARROWS[right]} Instalar todas as dependências\n"
-    help_content+=" • aurora apply <tema> ${ARROWS[right]} Aplicar tema específico\n"
-    help_content+=" • aurora preview <tema> ${ARROWS[right]} Visualizar tema sem aplicar\n"
-    help_content+=" • aurora list        ${ARROWS[right]} Listar temas disponíveis\n"
-    help_content+=" • aurora status      ${ARROWS[right]} Mostrar status do sistema\n"
-    help_content+=" • aurora help        ${ARROWS[right]} Mostrar esta ajuda\n\n"
-    help_content+="${DECORATIVE[diamond_filled]} TEMAS DISPONÍVEIS:\n\n"
-    help_content+=" • ganache_noir  ${ARROWS[right]} Modo escuro intenso\n"
-    help_content+=" • ganache_lait  ${ARROWS[right]} Modo padrão equilibrado\n"
-    help_content+=" • ganache_blanc ${ARROWS[right]} Modo claro elegante"
-    
-    create_fancy_box "AJUDA DO AURORA" "$help_content" "heavy" "106;73;40" "190;173;162" "auto"
+	show_fancy_banner
+
+	local help_content="🍫 Sistema de gerenciamento de temas visuais avançado\n\n"
+	help_content+="${DECORATIVE[star_filled]} COMANDOS DISPONÍVEIS:\n\n"
+	help_content+=" • aurora install     ${ARROWS[right]} Instalar todas as dependências\n"
+	help_content+=" • aurora apply <tema> ${ARROWS[right]} Aplicar tema específico\n"
+	help_content+=" • aurora preview <tema> ${ARROWS[right]} Visualizar tema sem aplicar\n"
+	help_content+=" • aurora list        ${ARROWS[right]} Listar temas disponíveis\n"
+	help_content+=" • aurora status      ${ARROWS[right]} Mostrar status do sistema\n"
+	help_content+=" • aurora help        ${ARROWS[right]} Mostrar esta ajuda\n\n"
+	help_content+="${DECORATIVE[diamond_filled]} TEMAS DISPONÍVEIS:\n\n"
+	help_content+=" • ganache_noir  ${ARROWS[right]} Modo escuro intenso\n"
+	help_content+=" • ganache_lait  ${ARROWS[right]} Modo padrão equilibrado\n"
+	help_content+=" • ganache_blanc ${ARROWS[right]} Modo claro elegante"
+
+	create_fancy_box "AJUDA DO AURORA" "$help_content" "heavy" "106;73;40" "190;173;162" "auto"
 }
 
 # Lista de temas com preview visual
 show_fancy_theme_list() {
-    show_fancy_banner
-    echo -e "\033[38;2;174;153;139m🎨 TEMAS DISPONÍVEIS\033[0m\n"
-    
-    if [[ ! -d "$THEME_DIR" ]]; then
-        create_fancy_box "ERRO" "Diretório de temas não encontrado. Execute 'aurora install' primeiro." "dotted" "176;58;36" "255;255;255" "auto"
-        return 1
-    fi
-    
-    local themes=("$THEME_DIR"/*.theme)
-    local theme_count=0
-    
-    for theme_file in "${themes[@]}"; do
-        if [[ -f "$theme_file" ]]; then
-            local theme_name=$(basename "$theme_file" .theme)
-            local theme_info=$(get_theme_preview "$theme_file")
-            
-            echo -e "\033[38;2;106;73;40m[${ARTISTIC[star_circle]}]\033[0m \033[38;2;190;173;162m$theme_name\033[0m"
-            echo -e "     $theme_info"
-            echo
-            ((theme_count++))
-        fi
-    done
-    
-    if [[ $theme_count -eq 0 ]]; then
-        create_fancy_box "ATENÇÃO" "Nenhum tema encontrado. Execute 'aurora install' primeiro." "dotted" "191;144;0" "255;255;255" "auto"
-    else
-        echo -e "\033[38;2;106;73;40m${STATUS[success]} $theme_count tema(s) disponível(is)\033[0m"
-    fi
+	show_fancy_banner
+	echo -e "\033[38;2;174;153;139m🎨 TEMAS DISPONÍVEIS\033[0m\n"
+
+	if [[ ! -d "$THEME_DIR" ]]; then
+		create_fancy_box "ERRO" "Diretório de temas não encontrado. Execute 'aurora install' primeiro." "dotted" "176;58;36" "255;255;255" "auto"
+		return 1
+	fi
+
+	local themes=("$THEME_DIR"/*.theme)
+	local theme_count=0
+
+	for theme_file in "${themes[@]}"; do
+		if [[ -f "$theme_file" ]]; then
+			local theme_name=$(basename "$theme_file" .theme)
+			local theme_info=$(get_theme_preview "$theme_file")
+
+			echo -e "\033[38;2;106;73;40m[${ARTISTIC[star_circle]}]\033[0m \033[38;2;190;173;162m$theme_name\033[0m"
+			echo -e "     $theme_info"
+			echo
+			((theme_count++))
+		fi
+	done
+
+	if [[ $theme_count -eq 0 ]]; then
+		create_fancy_box "ATENÇÃO" "Nenhum tema encontrado. Execute 'aurora install' primeiro." "dotted" "191;144;0" "255;255;255" "auto"
+	else
+		echo -e "\033[38;2;106;73;40m${STATUS[success]} $theme_count tema(s) disponível(is)\033[0m"
+	fi
 }
 
 # Obter preview visual do tema
 get_theme_preview() {
-    local theme_file="$1"
-    local bg_color=$(grep "^BG_COLOR=" "$theme_file" | cut -d'"' -f2)
-    local fg_color=$(grep "^FG_COLOR=" "$theme_file" | cut -d'"' -f2)
-    local accent_color=$(grep "^ACCENT=" "$theme_file" | cut -d'"' -f2)
-    
-    echo -e "Fundo: \033[38;2;$(hex_to_rgb "$bg_color")m${DECORATIVE[square_filled]}\033[0m $bg_color | Texto: \033[38;2;$(hex_to_rgb "$fg_color")m${DECORATIVE[circle_filled]}\033[0m $fg_color | Destaque: \033[38;2;$(hex_to_rgb "$accent_color")m${DECORATIVE[diamond_filled]}\033[0m $accent_color"
+	local theme_file="$1"
+	local bg_color=$(grep "^BG_COLOR=" "$theme_file" | cut -d'"' -f2)
+	local fg_color=$(grep "^FG_COLOR=" "$theme_file" | cut -d'"' -f2)
+	local accent_color=$(grep "^ACCENT=" "$theme_file" | cut -d'"' -f2)
+
+	echo -e "Fundo: \033[38;2;$(hex_to_rgb "$bg_color")m${DECORATIVE[square_filled]}\033[0m $bg_color | Texto: \033[38;2;$(hex_to_rgb "$fg_color")m${DECORATIVE[circle_filled]}\033[0m $fg_color | Destaque: \033[38;2;$(hex_to_rgb "$accent_color")m${DECORATIVE[diamond_filled]}\033[0m $accent_color"
 }
 
 # ============================================================================
@@ -603,42 +603,42 @@ get_theme_preview() {
 # ============================================================================
 
 hex_to_rgb() {
-    local hex="$1"
-    hex=${hex#\#}
-    local r=$((0x${hex:0:2}))
-    local g=$((0x${hex:2:2}))
-    local b=$((0x${hex:4:2}))
-    echo "$r;$g;$b"
+	local hex="$1"
+	hex=${hex#\#}
+	local r=$((0x${hex:0:2}))
+	local g=$((0x${hex:2:2}))
+	local b=$((0x${hex:4:2}))
+	echo "$r;$g;$b"
 }
 
 show_quick_commands() {
-    local commands_content="⚡ COMANDOS RÁPIDOS\n\n"
-    commands_content+=" ${ARROWS[right]} Execute: aurora install    (instalar dependências)\n"
-    commands_content+=" ${ARROWS[right]} Execute: aurora list      (ver temas disponíveis)\n"
-    commands_content+=" ${ARROWS[right]} Execute: aurora apply ganache_lait (aplicar tema padrão)\n\n"
-    commands_content+="${ARTISTIC[sparkle]} Dica: Use 'aurora preview <tema>' para visualizar antes de aplicar"
-    
-    create_fancy_box "COMANDOS RÁPIDOS" "$commands_content" "light" "106;73;40" "174;153;139" "auto"
+	local commands_content="⚡ COMANDOS RÁPIDOS\n\n"
+	commands_content+=" ${ARROWS[right]} Execute: aurora install    (instalar dependências)\n"
+	commands_content+=" ${ARROWS[right]} Execute: aurora list      (ver temas disponíveis)\n"
+	commands_content+=" ${ARROWS[right]} Execute: aurora apply ganache_lait (aplicar tema padrão)\n\n"
+	commands_content+="${ARTISTIC[sparkle]} Dica: Use 'aurora preview <tema>' para visualizar antes de aplicar"
+
+	create_fancy_box "COMANDOS RÁPIDOS" "$commands_content" "light" "106;73;40" "174;153;139" "auto"
 }
 
 show_welcome_message() {
-    show_fancy_banner
-    
-    local welcome_content="🍫 Bem-vindo ao sistema de gerenciamento de temas visuais\n\n"
-    welcome_content+="Este sistema avançado gerencia automaticamente a aparência do\n"
-    welcome_content+="terminal kmscon e do prompt Starship usando a paleta de cores\n"
-    welcome_content+="Ganache (inspirada em tons de chocolate).\n\n"
-    welcome_content+="${ARTISTIC[sparkle]} Recursos especiais:\n"
-    welcome_content+=" • Interface responsiva com símbolos especiais\n"
-    welcome_content+=" • Animações suaves e transições elegantes\n"
-    welcome_content+=" • Temas adaptativos e layouts flexíveis\n"
-    welcome_content+=" • Suporte completo para UTF-8\n\n"
-    welcome_content+="${DECORATIVE[star_filled]} Para começar:\n"
-    welcome_content+=" • Execute 'aurora install' para instalar dependências\n"
-    welcome_content+=" • Execute 'aurora list' para ver temas disponíveis\n"
-    welcome_content+=" • Execute 'aurora help' para ver todos os comandos"
-    
-    create_fancy_box "BEM-VINDO AO AURORA" "$welcome_content" "heavy" "106;73;40" "190;173;162" "auto"
+	show_fancy_banner
+
+	local welcome_content="🍫 Bem-vindo ao sistema de gerenciamento de temas visuais\n\n"
+	welcome_content+="Este sistema avançado gerencia automaticamente a aparência do\n"
+	welcome_content+="terminal kmscon e do prompt Starship usando a paleta de cores\n"
+	welcome_content+="Ganache (inspirada em tons de chocolate).\n\n"
+	welcome_content+="${ARTISTIC[sparkle]} Recursos especiais:\n"
+	welcome_content+=" • Interface responsiva com símbolos especiais\n"
+	welcome_content+=" • Animações suaves e transições elegantes\n"
+	welcome_content+=" • Temas adaptativos e layouts flexíveis\n"
+	welcome_content+=" • Suporte completo para UTF-8\n\n"
+	welcome_content+="${DECORATIVE[star_filled]} Para começar:\n"
+	welcome_content+=" • Execute 'aurora install' para instalar dependências\n"
+	welcome_content+=" • Execute 'aurora list' para ver temas disponíveis\n"
+	welcome_content+=" • Execute 'aurora help' para ver todos os comandos"
+
+	create_fancy_box "BEM-VINDO AO AURORA" "$welcome_content" "heavy" "106;73;40" "190;173;162" "auto"
 }
 
 # ============================================================================
@@ -646,23 +646,23 @@ show_welcome_message() {
 # ============================================================================
 
 show_success() {
-    local message="$1"
-    create_fancy_box "SUCESSO" "${STATUS[success]} $message" "light" "38;160;72" "255;255;255" "auto"
+	local message="$1"
+	create_fancy_box "SUCESSO" "${STATUS[success]} $message" "light" "38;160;72" "255;255;255" "auto"
 }
 
 show_error() {
-    local message="$1"
-    create_fancy_box "ERRO" "${STATUS[error]} $message" "dotted" "176;58;36" "255;255;255" "auto"
+	local message="$1"
+	create_fancy_box "ERRO" "${STATUS[error]} $message" "dotted" "176;58;36" "255;255;255" "auto"
 }
 
 show_info() {
-    local message="$1"
-    echo -e "🍫 \033[38;2;174;153;139m$message\033[0m"
+	local message="$1"
+	echo -e "🍫 \033[38;2;174;153;139m$message\033[0m"
 }
 
 show_warning() {
-    local message="$1"
-    create_fancy_box "AVISO" "${STATUS[warning]} $message" "light" "191;144;0" "255;255;255" "auto"
+	local message="$1"
+	create_fancy_box "AVISO" "${STATUS[warning]} $message" "light" "191;144;0" "255;255;255" "auto"
 }
 
 # ============================================================================
@@ -670,92 +670,92 @@ show_warning() {
 # ============================================================================
 
 install_dependencies() {
-    show_info "Iniciando instalação das dependências do AURORA..."
-    show_loading_animation "Instalando dependências" 3
-    
-    # Verificar privilégios root
-    if [[ $EUID -ne 0 ]]; then
-        show_error "Este script deve ser executado como root"
-        exit 1
-    fi
-    
-    # Atualizar repositórios
-    show_info "Atualizando repositórios do sistema..."
-    apt update -qq
-    
-    # Instalar pacotes básicos
-    local packages=("kmscon" "curl" "fontconfig" "git")
-    for package in "${packages[@]}"; do
-        show_info "Instalando $package..."
-        if ! dpkg -l | grep -q "^ii  $package "; then
-            apt install -y "$package"
-            show_success "$package instalado com sucesso"
-        else
-            show_success "$package já está instalado"
-        fi
-    done
-    
-    # Instalar Starship
-    show_info "Instalando Starship..."
-    if ! command -v starship &> /dev/null; then
-        sh -c "$(curl -fsSL https://starship.rs/install.sh)" -- --bin-dir /usr/local/bin
-        show_success "Starship instalado com sucesso"
-    else
-        show_success "Starship já está instalado"
-    fi
-    
-    # Instalar FiraCode Nerd Font
-    install_nerd_font
-    
-    # Configurar kmscon
-    configure_kmscon
-    
-    show_success "Todas as dependências foram instaladas com sucesso!"
+	show_info "Iniciando instalação das dependências do AURORA..."
+	show_loading_animation "Instalando dependências" 3
+
+	# Verificar privilégios root
+	if [[ $EUID -ne 0 ]]; then
+		show_error "Este script deve ser executado como root"
+		exit 1
+	fi
+
+	# Atualizar repositórios
+	show_info "Atualizando repositórios do sistema..."
+	apt update -qq
+
+	# Instalar pacotes básicos
+	local packages=("kmscon" "curl" "fontconfig" "git")
+	for package in "${packages[@]}"; do
+		show_info "Instalando $package..."
+		if ! dpkg -l | grep -q "^ii  $package "; then
+			apt install -y "$package"
+			show_success "$package instalado com sucesso"
+		else
+			show_success "$package já está instalado"
+		fi
+	done
+
+	# Instalar Starship
+	show_info "Instalando Starship..."
+	if ! command -v starship &>/dev/null; then
+		sh -c "$(curl -fsSL https://starship.rs/install.sh)" -- --bin-dir /usr/local/bin
+		show_success "Starship instalado com sucesso"
+	else
+		show_success "Starship já está instalado"
+	fi
+
+	# Instalar FiraCode Nerd Font
+	install_nerd_font
+
+	# Configurar kmscon
+	configure_kmscon
+
+	show_success "Todas as dependências foram instaladas com sucesso!"
 }
 
 install_nerd_font() {
-    show_info "Verificando FiraCode Nerd Font..."
-    
-    local font_dir="/usr/local/share/fonts"
-    local font_name="FiraCodeNerdFont"
-    local font_file="$font_dir/$font_name.ttf"
-    
-    if fc-list | grep -q "FiraCode"; then
-        show_success "FiraCode já está instalada"
-        return 0
-    fi
-    
-    show_info "Baixando FiraCode Nerd Font..."
-    mkdir -p "$font_dir"
-    
-    local font_url="https://github.com/ryanoasis/nerd-fonts/releases/latest/download/FiraCode.zip"
-    
-    local temp_dir=$(mktemp -d)
-    cd "$temp_dir"
-    
-    if curl -fsSL "$font_url" -o "FiraCode.zip"; then
-        unzip -q "FiraCode.zip"
-        cp "FiraCodeNerdFont-Regular.ttf" "$font_file"
-        fc-cache -fv
-        rm -rf "$temp_dir"
-        show_success "FiraCode Nerd Font instalada com sucesso"
-    else
-        if curl -fsSL "https://github.com/ryanoasis/nerd-fonts/raw/master/patched-fonts/FiraCode/Regular/complete/Fira%20Code%20Regular%20Nerd%20Font%20Complete.ttf" -o "$font_file"; then
-            fc-cache -fv
-            show_success "FiraCode Nerd Font instalada (fallback)"
-        else
-            rm -rf "$temp_dir"
-            show_warning "Falha ao baixar FiraCode. Usando fonte padrão do sistema."
-        fi
-    fi
+	show_info "Verificando FiraCode Nerd Font..."
+
+	local font_dir="/usr/local/share/fonts"
+	local font_name="FiraCodeNerdFont"
+	local font_file="$font_dir/$font_name.ttf"
+
+	if fc-list | grep -q "FiraCode"; then
+		show_success "FiraCode já está instalada"
+		return 0
+	fi
+
+	show_info "Baixando FiraCode Nerd Font..."
+	mkdir -p "$font_dir"
+
+	local font_url="https://github.com/ryanoasis/nerd-fonts/releases/latest/download/FiraCode.zip"
+
+	local temp_dir=$(mktemp -d)
+	cd "$temp_dir"
+
+	if curl -fsSL "$font_url" -o "FiraCode.zip"; then
+		unzip -q "FiraCode.zip"
+		cp "FiraCodeNerdFont-Regular.ttf" "$font_file"
+		fc-cache -fv
+		rm -rf "$temp_dir"
+		show_success "FiraCode Nerd Font instalada com sucesso"
+	else
+		if curl -fsSL "https://github.com/ryanoasis/nerd-fonts/raw/master/patched-fonts/FiraCode/Regular/complete/Fira%20Code%20Regular%20Nerd%20Font%20Complete.ttf" -o "$font_file"; then
+			fc-cache -fv
+			show_success "FiraCode Nerd Font instalada (fallback)"
+		else
+			rm -rf "$temp_dir"
+			show_warning "Falha ao baixar FiraCode. Usando fonte padrão do sistema."
+		fi
+	fi
 }
 
 configure_kmscon() {
-    show_info "Configurando kmscon..."
-    
-    mkdir -p "/etc/kmscon"
-    
-    cat > "$KMSCON_CONF" << 'EOF'
+	show_info "Configurando kmscon..."
+
+	mkdir -p "/etc/kmscon"
+
+	cat >"$KMSCON_CONF" <<'EOF'
 # Configuração do KMSCON para AURORA
 font-name=FiraCode Nerd Font
 font-size=14
@@ -783,7 +783,7 @@ xkb-variant=nodeadkeys
 xkb-options=caps:escape
 EOF
 
-    show_success "KMSCON configurado com sucesso"
+	show_success "KMSCON configurado com sucesso"
 }
 
 # ============================================================================
@@ -791,52 +791,52 @@ EOF
 # ============================================================================
 
 generate_theme_files() {
-    show_info "Gerando arquivos de tema padrão..."
-    
-    mkdir -p "$THEME_DIR"
-    
-    cat > "$THEME_DIR/ganache_noir.theme" << 'EOF'
+	show_info "Gerando arquivos de tema padrão..."
+
+	mkdir -p "$THEME_DIR"
+
+	cat >"$THEME_DIR/ganache_noir.theme" <<'EOF'
 # Tema Ganache Noir - Modo Escuro Intenso
 BG_COLOR="#0b0704"
 FG_COLOR="#beada2"
 ACCENT="#6a4928"
 EOF
 
-    cat > "$THEME_DIR/ganache_lait.theme" << 'EOF'
+	cat >"$THEME_DIR/ganache_lait.theme" <<'EOF'
 # Tema Ganache Lait - Modo Padrão Equilibrado
 BG_COLOR="#2a1d10"
 FG_COLOR="#ded6d1"
 ACCENT="#ae998b"
 EOF
 
-    cat > "$THEME_DIR/ganache_blanc.theme" << 'EOF'
+	cat >"$THEME_DIR/ganache_blanc.theme" <<'EOF'
 # Tema Ganache Blanc - Modo Claro Elegante
 BG_COLOR="#efebe8"
 FG_COLOR="#352514"
 ACCENT="#5f4224"
 EOF
 
-    show_success "Arquivos de tema gerados com sucesso em $THEME_DIR"
+	show_success "Arquivos de tema gerados com sucesso em $THEME_DIR"
 }
 
 apply_theme() {
-    local theme_name="$1"
-    local theme_file="$THEME_DIR/${theme_name}.theme"
-    
-    show_fancy_banner
-    create_fancy_box "APLICANDO TEMA" "${ARTISTIC[sparkle]} Aplicando tema: $theme_name" "light" "106;73;40" "190;173;162" "auto"
-    
-    if [[ ! -f "$theme_file" ]]; then
-        show_error "Tema '$theme_name' não encontrado"
-        echo "Use 'aurora list' para ver temas disponíveis"
-        exit 1
-    fi
-    
-    source "$theme_file"
-    
-    # Aplicar configurações (versão simplificada)
-    mkdir -p "$(dirname "$STARSHIP_CONFIG")"
-    cat > "$STARSHIP_CONFIG" << EOF
+	local theme_name="$1"
+	local theme_file="$THEME_DIR/${theme_name}.theme"
+
+	show_fancy_banner
+	create_fancy_box "APLICANDO TEMA" "${ARTISTIC[sparkle]} Aplicando tema: $theme_name" "light" "106;73;40" "190;173;162" "auto"
+
+	if [[ ! -f "$theme_file" ]]; then
+		show_error "Tema '$theme_name' não encontrado"
+		echo "Use 'aurora list' para ver temas disponíveis"
+		exit 1
+	fi
+
+	source "$theme_file"
+
+	# Aplicar configurações (versão simplificada)
+	mkdir -p "$(dirname "$STARSHIP_CONFIG")"
+	cat >"$STARSHIP_CONFIG" <<EOF
 # Configuração do Starship - Tema AURORA ($theme_name)
 [hostname]
 format = '[\$name]($ACCENT) on '
@@ -846,41 +846,41 @@ style = '$FG_COLOR'
 success_symbol = '[$ARROWS[right]]($ACCENT)'
 error_symbol = '[$ARROWS[left]]($ACCENT)'
 EOF
-    
-    show_success "Tema '$theme_name' aplicado com sucesso!"
+
+	show_success "Tema '$theme_name' aplicado com sucesso!"
 }
 
 preview_theme() {
-    local theme_name="$1"
-    local theme_file="$THEME_DIR/${theme_name}.theme"
-    
-    show_fancy_banner
-    create_fancy_box "PREVIEW DO TEMA" "🍫 Visualizando tema: $theme_name (temporário, 5 segundos)" "heavy" "106;73;40" "190;173;162" "auto"
-    
-    if [[ ! -f "$theme_file" ]]; then
-        show_error "Tema '$theme_name' não encontrado"
-        exit 1
-    fi
-    
-    source "$theme_file"
-    
-    # Preview visual simplificado
-    local preview_content="🎨 PREVIEW DO TEMA: $theme_name\n\n"
-    preview_content+="Hostname: ${ARTISTIC[star_circle]} Aurora-Server on /dev/pts/0\n\n"
-    preview_content+="~/projetos/aurora main $ARROWS[right] git status\n"
-    preview_content+="On branch main\n"
-    preview_content+="Your branch is up to date with 'origin/main'.\n\n"
-    preview_content+="nothing to commit, working tree clean\n"
-    preview_content+="🍫 AURORA $(date +%H:%M:%S)\n\n"
-    preview_content+="🎨 Paleta de Cores:\n"
-    preview_content+=" Fundo: $BG_COLOR | Texto: $FG_COLOR | Destaque: $ACCENT"
-    
-    create_fancy_box "PREVIEW" "$preview_content" "light" "$(hex_to_rgb "$ACCENT")" "$(hex_to_rgb "$FG_COLOR")" "auto"
-    
-    show_info "Preview ativo por 5 segundos..."
-    sleep 5
-    
-    show_success "Preview finalizado - cores revertidas"
+	local theme_name="$1"
+	local theme_file="$THEME_DIR/${theme_name}.theme"
+
+	show_fancy_banner
+	create_fancy_box "PREVIEW DO TEMA" "🍫 Visualizando tema: $theme_name (temporário, 5 segundos)" "heavy" "106;73;40" "190;173;162" "auto"
+
+	if [[ ! -f "$theme_file" ]]; then
+		show_error "Tema '$theme_name' não encontrado"
+		exit 1
+	fi
+
+	source "$theme_file"
+
+	# Preview visual simplificado
+	local preview_content="🎨 PREVIEW DO TEMA: $theme_name\n\n"
+	preview_content+="Hostname: ${ARTISTIC[star_circle]} Aurora-Server on /dev/pts/0\n\n"
+	preview_content+="~/projetos/aurora main $ARROWS[right] git status\n"
+	preview_content+="On branch main\n"
+	preview_content+="Your branch is up to date with 'origin/main'.\n\n"
+	preview_content+="nothing to commit, working tree clean\n"
+	preview_content+="🍫 AURORA $(date +%H:%M:%S)\n\n"
+	preview_content+="🎨 Paleta de Cores:\n"
+	preview_content+=" Fundo: $BG_COLOR | Texto: $FG_COLOR | Destaque: $ACCENT"
+
+	create_fancy_box "PREVIEW" "$preview_content" "light" "$(hex_to_rgb "$ACCENT")" "$(hex_to_rgb "$FG_COLOR")" "auto"
+
+	show_info "Preview ativo por 5 segundos..."
+	sleep 5
+
+	show_success "Preview finalizado - cores revertidas"
 }
 
 # ============================================================================
@@ -888,45 +888,45 @@ preview_theme() {
 # ============================================================================
 
 main() {
-    case "${1:-}" in
-        "install")
-            generate_theme_files
-            install_dependencies
-            ;;
-        "apply")
-            if [[ -z "${2:-}" ]]; then
-                show_error "Uso: aurora apply <tema>"
-                echo "Use 'aurora list' para ver temas disponíveis"
-                exit 1
-            fi
-            apply_theme "$2"
-            ;;
-        "preview")
-            if [[ -z "${2:-}" ]]; then
-                show_error "Uso: aurora preview <tema>"
-                echo "Use 'aurora list' para ver temas disponíveis"
-                exit 1
-            fi
-            preview_theme "$2"
-            ;;
-        "list")
-            show_fancy_theme_list
-            ;;
-        "status")
-            show_advanced_status
-            ;;
-        "help"|"--help"|"-h")
-            show_advanced_help
-            ;;
-        "")
-            show_welcome_message
-            ;;
-        *)
-            show_error "Comando desconhecido: $1"
-            echo "Use 'aurora help' para ver comandos disponíveis"
-            exit 1
-            ;;
-    esac
+	case "${1:-}" in
+	"install")
+		generate_theme_files
+		install_dependencies
+		;;
+	"apply")
+		if [[ -z "${2:-}" ]]; then
+			show_error "Uso: aurora apply <tema>"
+			echo "Use 'aurora list' para ver temas disponíveis"
+			exit 1
+		fi
+		apply_theme "$2"
+		;;
+	"preview")
+		if [[ -z "${2:-}" ]]; then
+			show_error "Uso: aurora preview <tema>"
+			echo "Use 'aurora list' para ver temas disponíveis"
+			exit 1
+		fi
+		preview_theme "$2"
+		;;
+	"list")
+		show_fancy_theme_list
+		;;
+	"status")
+		show_advanced_status
+		;;
+	"help" | "--help" | "-h")
+		show_advanced_help
+		;;
+	"")
+		show_welcome_message
+		;;
+	*)
+		show_error "Comando desconhecido: $1"
+		echo "Use 'aurora help' para ver comandos disponíveis"
+		exit 1
+		;;
+	esac
 }
 
 # ============================================================================
