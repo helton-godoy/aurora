@@ -168,7 +168,72 @@ calculate_layout() {
 # SISTEMA DE CAIXAS INTELIGENTES
 # ============================================================================
 
-# Função para criar caixa com estilo personalizável
+# Função auxiliar: calcula a largura visual de uma string considerando Unicode
+# Usa wc -L que calcula corretamente a largura de display em terminais modernos
+get_visual_width() {
+    local str="$1"
+
+    # wc -L retorna a largura visual máxima da linha
+    # Isso já considera caracteres de largura dupla em terminais com suporte UTF-8
+    printf '%s' "$str" | wc -L
+}
+
+# Função auxiliar: quebra texto em linhas respeitando largura visual
+wrap_text_visual() {
+    local text="$1"
+    local max_width="$2"
+    local lines=()
+    local current_line=""
+    local current_width=0
+
+    # Primeiro, processar quebras de linha explícitas
+    while IFS= read -r paragraph || [[ -n "$paragraph" ]]; do
+        # Se parágrafo vazio, adicionar linha vazia
+        if [[ -z "$paragraph" ]]; then
+            if [[ -n "$current_line" ]]; then
+                lines+=("$current_line")
+                current_line=""
+                current_width=0
+            fi
+            lines+=("")
+            continue
+        fi
+
+        # Processar palavras do parágrafo
+        local words=()
+        read -ra words <<< "$paragraph"
+
+        for word in "${words[@]}"; do
+            local word_width
+            word_width=$(get_visual_width "$word")
+
+            if (( current_width == 0 )); then
+                # Primeira palavra da linha
+                current_line="$word"
+                current_width=$word_width
+            elif (( current_width + 1 + word_width <= max_width )); then
+                # Palavra cabe na linha atual
+                current_line="$current_line $word"
+                current_width=$((current_width + 1 + word_width))
+            else
+                # Palavra não cabe, iniciar nova linha
+                lines+=("$current_line")
+                current_line="$word"
+                current_width=$word_width
+            fi
+        done
+    done <<< "$text"
+
+    # Adicionar última linha se houver
+    if [[ -n "$current_line" ]]; then
+        lines+=("$current_line")
+    fi
+
+    # Retornar linhas separadas por newline
+    printf '%s\n' "${lines[@]}"
+}
+
+# Função para criar caixa com estilo personalizável (Versão Corrigida)
 create_fancy_box() {
     local title="$1"
     local content="$2"
@@ -176,24 +241,55 @@ create_fancy_box() {
     local border_color="${4:-106;73;40}"
     local fill_color="${5:-190;173;162}"
     local width="${6:-auto}"
-    
+
     # Obter dimensões do terminal
-    local cols=$(get_terminal_dimensions | cut -d' ' -f1)
-    
+    local cols
+    cols=$(get_terminal_dimensions | cut -d' ' -f1)
+
     # Calcular largura da caixa
     if [[ "$width" == "auto" ]]; then
-        width=$((cols - 6))
-        # Limites de segurança para a largura
-        ((width < 50)) && width=50
+        width=$((cols - 4))
+
+        # Lógica de Largura Segura:
+        # Só força o mínimo de 50 se o terminal tiver espaço
+        if (( width < 50 )); then
+            if (( cols >= 54 )); then
+                width=50
+            fi
+        fi
+
+        # Limite máximo para monitores ultrawide
         ((width > 90)) && width=90
     fi
-    
-    # Calcular altura baseada no conteúdo
-    # O fold usa 'width - 4' para garantir margens internas de 1 espaço cada lado
-    local content_lines
-    readarray -t content_lines <<< "$(echo "$content" | fold -w $((width - 4)) -s)"
-    local height=$((${#content_lines[@]} + 6))
-    
+
+    # Proteção de conteúdo vazio
+    if [[ -z "$content" ]]; then content=" "; fi
+
+    # ===============================================
+    # CÁLCULOS DE LARGURA CORRIGIDOS
+    # ===============================================
+    # Largura total da caixa = width
+    # Espaço interno (entre bordas verticais) = width - 2
+    # Margem esquerda para conteúdo = 1
+    # Largura máxima do texto de conteúdo = width - 2 - 1 = width - 3
+
+    local box_inner_width=$((width - 2))
+    local content_text_width=$((box_inner_width - 1))  # Descontando margem esquerda de 1
+
+    # Processar conteúdo: converter \n literal para newline real e fazer wrap
+    local processed_content
+    processed_content=$(echo -e "$content")
+
+    # Aplicar word-wrap visual com largura correta
+    local wrapped_content
+    wrapped_content=$(wrap_text_visual "$processed_content" "$content_text_width")
+
+    # Converter para array de linhas
+    local content_lines=()
+    while IFS= read -r line; do
+        content_lines+=("$line")
+    done <<< "$wrapped_content"
+
     # Obter caracteres do estilo
     local tl="${BOX_CHARS[${style}_tl]}"
     local tr="${BOX_CHARS[${style}_tr]}"
@@ -201,47 +297,94 @@ create_fancy_box() {
     local br="${BOX_CHARS[${style}_br]}"
     local h="${BOX_CHARS[${style}_h]}"
     local v="${BOX_CHARS[${style}_v]}"
-    local mid_t="${BOX_CHARS[${style}_mid_t]}"
-    local mid_b="${BOX_CHARS[${style}_mid_b]}"
     local mid_l="${BOX_CHARS[${style}_mid_l]}"
     local mid_r="${BOX_CHARS[${style}_mid_r]}"
-    local cross="${BOX_CHARS[${style}_cross]}"
-    
-    # --- CORREÇÃO APLICADA AQUI ---
-    # A linha horizontal deve ser (width - 2) porque os cantos ocupam 2 espaços.
-    local top_line=$(printf "%.0s$h" $(seq 1 $((width - 2))))
-    local mid_line=$(printf "%.0s$h" $(seq 1 $((width - 2))))
-    
-    # Linha do título centralizada
-    local title_padding=$(( (width - ${#title} - 2) / 2 ))
-    if (( title_padding < 1 )); then
-        title_padding=1
+
+    # Gerar linhas horizontais (box_inner_width caracteres)
+    local horizontal_line
+    horizontal_line=$(printf "%.0s$h" $(seq 1 "$box_inner_width"))
+
+    # ===============================================
+    # TÍTULO (centralizado, ocupa todo box_inner_width)
+    # ===============================================
+    local title_visual_width
+    title_visual_width=$(get_visual_width "$title")
+    local max_title_len=$((box_inner_width - 2))  # Deixar pelo menos 1 espaço de cada lado
+
+    # Truncar título se necessário
+    if (( title_visual_width > max_title_len )); then
+        local truncated=""
+        local char_count=0
+        local i=0
+        local len=${#title}
+
+        while (( i < len && char_count < max_title_len - 1 )); do
+            local char="${title:i:1}"
+            local byte
+            byte=$(printf '%d' "'$char" 2>/dev/null || echo 0)
+            local char_width=1
+
+            if (( byte >= 240 )); then
+                char="${title:i:4}"
+                char_width=2
+                i=$((i + 4))
+            elif (( byte >= 224 )); then
+                char="${title:i:3}"
+                char_width=1
+                i=$((i + 3))
+            elif (( byte >= 192 )); then
+                char="${title:i:2}"
+                i=$((i + 2))
+            else
+                i=$((i + 1))
+            fi
+
+            if (( char_count + char_width <= max_title_len - 1 )); then
+                truncated+="$char"
+                char_count=$((char_count + char_width))
+            else
+                break
+            fi
+        done
+        title="${truncated}…"
+        title_visual_width=$(get_visual_width "$title")
     fi
-    
-    # Exibir a caixa
-    # Topo
-    echo -e "\033[38;2;${border_color}m${tl}${top_line}${tr}\033[0m"
-    
-    # Título (com preenchimento calculado para fechar exatamente a largura)
-    # A lógica do printf preenche o espaço restante à direita automaticamente
-    echo -e "\033[38;2;${border_color}m${v}\033[0m\033[38;2;${fill_color}m$(printf "%*s%s%*s" $title_padding "" "$title" $((width - ${#title} - title_padding - 2)) "")\033[38;2;${border_color}m${v}\033[0m"
-    
+
+    # Cálculo do padding do título para centralização
+    local title_left_pad=$(( (box_inner_width - title_visual_width) / 2 ))
+    local title_right_pad=$((box_inner_width - title_visual_width - title_left_pad))
+    (( title_left_pad < 0 )) && title_left_pad=0
+    (( title_right_pad < 0 )) && title_right_pad=0
+
+    # ===============================================
+    # RENDERIZAÇÃO
+    # ===============================================
+
+    # Linha de topo
+    echo -e "\033[38;2;${border_color}m${tl}${horizontal_line}${tr}\033[0m"
+
+    # Título (centralizado)
+    echo -e "\033[38;2;${border_color}m${v}\033[0m\033[38;2;${fill_color}m$(printf "%*s" "$title_left_pad" "")${title}$(printf "%*s" "$title_right_pad" "")\033[38;2;${border_color}m${v}\033[0m"
+
     # Divisor
-    echo -e "\033[38;2;${border_color}m${mid_l}${mid_line}${mid_r}\033[0m"
-    
-    # Conteúdo
+    echo -e "\033[38;2;${border_color}m${mid_l}${horizontal_line}${mid_r}\033[0m"
+
+    # Conteúdo (alinhado à esquerda com margem de 1)
     for line in "${content_lines[@]}"; do
-        local line_width=${#line}
-        local line_padding=$(( (width - line_width - 2) / 2 ))
-        if (( line_padding < 1 )); then
-            line_padding=1
-        fi
-        # Linha de conteúdo
-        echo -e "\033[38;2;${border_color}m${v}\033[0m\033[38;2;${fill_color}m$(printf "%*s%s%*s" $line_padding "" "$line" $((width - line_width - line_padding - 2)) "")\033[38;2;${border_color}m${v}\033[0m"
+        local line_visual_width
+        line_visual_width=$(get_visual_width "$line")
+
+        # Margem esquerda = 1 espaço
+        # Padding direito = box_inner_width - 1 - line_visual_width
+        local right_pad=$((box_inner_width - 1 - line_visual_width))
+        (( right_pad < 0 )) && right_pad=0
+
+        # Renderizar linha de conteúdo
+        echo -e "\033[38;2;${border_color}m${v}\033[0m\033[38;2;${fill_color}m $(printf "%s%*s" "$line" "$right_pad" "")\033[38;2;${border_color}m${v}\033[0m"
     done
-    
-    # Base
-    echo -e "\033[38;2;${border_color}m${bl}${top_line}${br}\033[0m"
+
+    # Linha de base
+    echo -e "\033[38;2;${border_color}m${bl}${horizontal_line}${br}\033[0m"
 }
 
 # ============================================================================
@@ -281,36 +424,59 @@ typewriter_effect() {
 # Banner principal com estilo artístico
 show_fancy_banner() {
     clear
-    local layout=$(calculate_layout)
-    local cols=$(get_terminal_dimensions | cut -d' ' -f1)
-    
-    # Definir estilo baseado no layout
-    local banner_width=$((cols - 8))
-    ((banner_width < 60)) && banner_width=60
+    local cols
+    cols=$(get_terminal_dimensions | cut -d' ' -f1)
+
+    # Definir largura do banner baseado no terminal
+    local banner_width=$((cols - 4))
+    ((banner_width < 50)) && banner_width=50
     ((banner_width > 100)) && banner_width=100
-    
-    local h=$(printf "═%.0s" $(seq 1 $banner_width))
+
+    # Textos do banner
     local title="🍫 AURORA v$SCRIPT_VERSION"
     local subtitle="Gerenciador de Temas Visuais Avançado"
     local theme_line="Tema: Ganache (Chocolate) ✦"
-    
+
+    # Calcular larguras visuais CORRETAMENTE
+    local title_visual_width
+    title_visual_width=$(get_visual_width "$title")
+    local subtitle_visual_width
+    subtitle_visual_width=$(get_visual_width "$subtitle")
+    local theme_visual_width
+    theme_visual_width=$(get_visual_width "$theme_line")
+
+    # Gerar linha horizontal (banner_width - 2 para os cantos)
+    local h
+    h=$(printf "═%.0s" $(seq 1 $((banner_width - 2))))
+
+    # Largura interna para conteúdo (sem as bordas verticais)
+    local inner_width=$((banner_width - 2))
+
+    # Topo
     echo -e "\033[38;2;106;73;40m┏${h}┓\033[0m"
-    
-    # Título centralizado
-    local title_len=${#title}
-    local title_pad=$(( (banner_width - title_len) / 2 ))
-    echo -e "\033[38;2;106;73;40m┃\033[0m\033[38;2;190;173;162m$(printf "%*s%s%*s" $title_pad "" "$title" $((banner_width - title_len - title_pad)) "")\033[38;2;106;73;40m┃\033[0m"
-    
+
+    # Título centralizado com padding correto
+    local title_left_pad=$(( (inner_width - title_visual_width) / 2 ))
+    local title_right_pad=$((inner_width - title_visual_width - title_left_pad))
+    (( title_left_pad < 0 )) && title_left_pad=0
+    (( title_right_pad < 0 )) && title_right_pad=0
+    echo -e "\033[38;2;106;73;40m┃\033[0m\033[38;2;190;173;162m$(printf "%*s" "$title_left_pad" "")${title}$(printf "%*s" "$title_right_pad" "")\033[38;2;106;73;40m┃\033[0m"
+
     # Subtítulo
-    local subtitle_len=${#subtitle}
-    local subtitle_pad=$(( (banner_width - subtitle_len) / 2 ))
-    echo -e "\033[38;2;106;73;40m┃\033[0m\033[38;2;174;153;139m$(printf "%*s%s%*s" $subtitle_pad "" "$subtitle" $((banner_width - subtitle_len - subtitle_pad)) "")\033[38;2;106;73;40m┃\033[0m"
-    
+    local subtitle_left_pad=$(( (inner_width - subtitle_visual_width) / 2 ))
+    local subtitle_right_pad=$((inner_width - subtitle_visual_width - subtitle_left_pad))
+    (( subtitle_left_pad < 0 )) && subtitle_left_pad=0
+    (( subtitle_right_pad < 0 )) && subtitle_right_pad=0
+    echo -e "\033[38;2;106;73;40m┃\033[0m\033[38;2;174;153;139m$(printf "%*s" "$subtitle_left_pad" "")${subtitle}$(printf "%*s" "$subtitle_right_pad" "")\033[38;2;106;73;40m┃\033[0m"
+
     # Linha do tema
-    local theme_len=${#theme_line}
-    local theme_pad=$(( (banner_width - theme_len) / 2 ))
-    echo -e "\033[38;2;106;73;40m┃\033[0m\033[38;2;190;173;162m$(printf "%*s%s%*s" $theme_pad "" "$theme_line" $((banner_width - theme_len - theme_pad)) "")\033[38;2;106;73;40m┃\033[0m"
-    
+    local theme_left_pad=$(( (inner_width - theme_visual_width) / 2 ))
+    local theme_right_pad=$((inner_width - theme_visual_width - theme_left_pad))
+    (( theme_left_pad < 0 )) && theme_left_pad=0
+    (( theme_right_pad < 0 )) && theme_right_pad=0
+    echo -e "\033[38;2;106;73;40m┃\033[0m\033[38;2;190;173;162m$(printf "%*s" "$theme_left_pad" "")${theme_line}$(printf "%*s" "$theme_right_pad" "")\033[38;2;106;73;40m┃\033[0m"
+
+    # Base
     echo -e "\033[38;2;106;73;40m┗${h}┛\033[0m"
     echo
 }
