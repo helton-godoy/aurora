@@ -1,0 +1,24 @@
+name: "Ganache Cocoa"
+description: "Modo chocolate suave - Tons de Cacau"
+colors:
+  background: "#553a20"
+  foreground: "#efebe8"
+  accent: "#ae998b"
+  warning: "#bf9000"
+  palette:
+    - "#0b0704"  # Deep Dark
+    - "#150f08"  # Bitter
+    - "#20160c"  # Dark Espresso
+    - "#2a1d10"  # Espresso
+    - "#352514"  # Dark Coffee
+    - "#402c18"  # Coffee
+    - "#4a331c"  # Dark Cocoa
+    - "#553a20"  # Cocoa
+    - "#5f4224"  # Dark Caramel
+    - "#6a4928"  # Caramel
+    - "#ae998b"  # Soft Brown
+    - "#beada2"  # Roasted Almond
+    - "#cec2b9"  # Cream
+    - "#ded6d1"  # Milk Foam
+    - "#efebe8"  # White Chocolate
+    - "#ffffff"  # White
