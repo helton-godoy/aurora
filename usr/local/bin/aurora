@@ -1,0 +1,110 @@
+#!/bin/bash
+# ==============================================================================
+# PROJETO AURORA - TTY Theme Engine
+# Arquitetura: Monólito Modular
+# Foco: Kmscon + Starship + NerdFonts
+# ==============================================================================
+
+# ------------------------------------------------------------------------------
+# 1. CONSTANTES E CONFIGURAÇÃO
+# ------------------------------------------------------------------------------
+AURORA_DIR="/etc/aurora"
+THEMES_DIR="$AURORA_DIR/themes"
+KMSCON_CONF="/etc/kmscon/kmscon.conf"
+STARSHIP_CONFIG="$HOME/.config/starship.toml"
+
+# Paleta Ganache (Definida aqui para uso interno ou fallback)
+COLOR_CHOCO_DARK="#0b0704"
+# ... outras cores ...
+
+# ------------------------------------------------------------------------------
+# 2. FUNÇÕES UTILITÁRIAS (UI & Logs)
+# Substitui scripts soltos de diagnóstico
+# ------------------------------------------------------------------------------
+log_info() { echo -e "[\e[34mINFO\e[0m] $1"; }
+log_error() { echo -e "[\e[31mERRO\e[0m] $1"; }
+
+draw_box() {
+	# Implementação de caixa Unicode
+	# Recebe Título, Mensagem e Cor
+}
+
+# ------------------------------------------------------------------------------
+# 3. MÓDULO DE BOOTSTRAP (O "Instalador")
+# Consolida: install-system-*.sh, config-system-*.sh
+# ------------------------------------------------------------------------------
+check_dependencies() {
+	# 1. Verifica se é Root
+	# 2. Verifica kmscon, curl, git
+	# 3. Verifica se a fonte Nerd Font existe. Se não -> Baixa do GitHub.
+	# 4. Verifica se o binário starship existe. Se não -> Instala.
+}
+
+setup_environment() {
+	# Cria pastas /etc/aurora
+	# Gera os arquivos .theme padrão (Ganache) via 'cat <<EOF'
+	# Habilita o serviço kmscon no systemd
+}
+
+# ------------------------------------------------------------------------------
+# 4. MÓDULO DO MOTOR KMSCON
+# Consolida: kmscon-themes.sh
+# ------------------------------------------------------------------------------
+update_kmscon_config() {
+	local theme_file="$1"
+	# Lê as variáveis do arquivo .theme (source $theme_file)
+	# Reescreve /etc/kmscon/kmscon.conf com a nova paleta e fonte
+	# Nota: Kmscon precisa de restart para aplicar, ou reload se suportado
+}
+
+# ------------------------------------------------------------------------------
+# 5. MÓDULO DE INTEGRAÇÃO STARSHIP (A "Cola")
+# O elo perdido na versão anterior
+# ------------------------------------------------------------------------------
+generate_starship_toml() {
+	local theme_file="$1"
+	# Lê o tema
+	# Cria dinamicamente o arquivo starship.toml
+	# Mapeia: BG_COLOR do tema -> bg do Starship
+	# Mapeia: ACCENT do tema -> estilo do usuário/hostname
+}
+
+# ------------------------------------------------------------------------------
+# 6. MÓDULO DE VISUALIZAÇÃO (Preview)
+# Consolida: test-tty-themes.sh, demo-themes.sh
+# ------------------------------------------------------------------------------
+preview_theme() {
+	local theme_name="$1"
+	# 1. Lê as cores do tema
+	# 2. Usa printf "\033]P..." para injetar cores no terminal ATUAL (sem restart)
+	# 3. Mostra demo
+	# 4. Espera 5 segundos
+	# 5. Reseta (trap EXIT)
+}
+
+# ------------------------------------------------------------------------------
+# 7. CONTROLADOR PRINCIPAL (CLI Router)
+# O ponto de entrada único
+# ------------------------------------------------------------------------------
+case "$1" in
+setup)
+	check_dependencies
+	setup_environment
+	;;
+list)
+	ls "$THEMES_DIR"
+	;;
+preview)
+	preview_theme "$2"
+	;;
+apply)
+	# Orquestra a mudança completa
+	update_kmscon_config "$2"
+	generate_starship_toml "$2"
+	systemctl restart kmscon
+	;;
+*)
+	echo "Uso: aurora {setup|list|preview|apply}"
+	exit 1
+	;;
+esac
