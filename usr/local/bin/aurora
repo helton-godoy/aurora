@@ -183,11 +183,13 @@ create_fancy_box() {
     # Calcular largura da caixa
     if [[ "$width" == "auto" ]]; then
         width=$((cols - 6))
+        # Limites de segurança para a largura
         ((width < 50)) && width=50
         ((width > 90)) && width=90
     fi
     
     # Calcular altura baseada no conteúdo
+    # O fold usa 'width - 4' para garantir margens internas de 1 espaço cada lado
     local content_lines
     readarray -t content_lines <<< "$(echo "$content" | fold -w $((width - 4)) -s)"
     local height=$((${#content_lines[@]} + 6))
@@ -205,8 +207,9 @@ create_fancy_box() {
     local mid_r="${BOX_CHARS[${style}_mid_r]}"
     local cross="${BOX_CHARS[${style}_cross]}"
     
-    # Criar linhas horizontais
-    local top_line=$(printf "%.0s$h" $(seq 1 $width))
+    # --- CORREÇÃO APLICADA AQUI ---
+    # A linha horizontal deve ser (width - 2) porque os cantos ocupam 2 espaços.
+    local top_line=$(printf "%.0s$h" $(seq 1 $((width - 2))))
     local mid_line=$(printf "%.0s$h" $(seq 1 $((width - 2))))
     
     # Linha do título centralizada
@@ -216,8 +219,14 @@ create_fancy_box() {
     fi
     
     # Exibir a caixa
+    # Topo
     echo -e "\033[38;2;${border_color}m${tl}${top_line}${tr}\033[0m"
+    
+    # Título (com preenchimento calculado para fechar exatamente a largura)
+    # A lógica do printf preenche o espaço restante à direita automaticamente
     echo -e "\033[38;2;${border_color}m${v}\033[0m\033[38;2;${fill_color}m$(printf "%*s%s%*s" $title_padding "" "$title" $((width - ${#title} - title_padding - 2)) "")\033[38;2;${border_color}m${v}\033[0m"
+    
+    # Divisor
     echo -e "\033[38;2;${border_color}m${mid_l}${mid_line}${mid_r}\033[0m"
     
     # Conteúdo
@@ -227,9 +236,11 @@ create_fancy_box() {
         if (( line_padding < 1 )); then
             line_padding=1
         fi
+        # Linha de conteúdo
         echo -e "\033[38;2;${border_color}m${v}\033[0m\033[38;2;${fill_color}m$(printf "%*s%s%*s" $line_padding "" "$line" $((width - line_width - line_padding - 2)) "")\033[38;2;${border_color}m${v}\033[0m"
     done
     
+    # Base
     echo -e "\033[38;2;${border_color}m${bl}${top_line}${br}\033[0m"
 }
 
