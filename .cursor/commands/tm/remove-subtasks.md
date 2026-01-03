@@ -17,6 +17,7 @@ task-master remove-subtasks --id=$ARGUMENTS
 ## Pre-Clear Analysis
 
 1. **Subtask Summary**
+
    - Number of subtasks
    - Completion status of each
    - Work already done
@@ -62,6 +63,7 @@ Continue? (y/n)
 ## Alternative Options
 
 Suggest alternatives:
+
 - Convert important subtasks to tasks
 - Keep completed subtasks
 - Archive instead of delete
