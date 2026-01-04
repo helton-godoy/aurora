@@ -45,7 +45,7 @@ cleanup_old_backups() {
 
 	# Contar backups por arquivo original
 	local files
-	files=$(ls -1 "$BACKUP_DIR"/*.bak 2>/dev/null | sed 's/\.[0-9]*\.[0-9]*_.*\.bak$//' | sort -u)
+	files=$(ls -1 "$BACKUP_DIR"/*.bak 2>/dev/null | sed 's/\.[0-9]\{8\}_[0-9]\{6\}\.bak$//' | sed "s|$BACKUP_DIR/||" | sort -u)
 
 	for file in $files; do
 		local backups

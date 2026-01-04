@@ -4,36 +4,61 @@
 # Responsável por carregar, validar e aplicar temas YAML
 # ==============================================================================
 
+# Encontrar arquivo de tema considerando precedência
+# Ordem: usuário > global > sistema
+find_theme_file() {
+	local theme_name="$1"
+	local theme_file="${theme_name}.yml"
+
+	if [[ -f "$USER_THEME_DIR/$theme_file" ]]; then
+		echo "$USER_THEME_DIR/$theme_file"
+		return 0
+	fi
+
+	if [[ -f "$GLOBAL_THEME_DIR/$theme_file" ]]; then
+		echo "$GLOBAL_THEME_DIR/$theme_file"
+		return 0
+	fi
+
+	if [[ -f "$SYSTEM_THEME_DIR/$theme_file" ]]; then
+		echo "$SYSTEM_THEME_DIR/$theme_file"
+		return 0
+	fi
+
+	return 1
+}
+
 # Carregar tema YAML para variáveis globais
 load_theme() {
 	local theme_name="$1"
-	local theme_file="$THEME_DIR/${theme_name}.yml"
+	local theme_file
 
-	# Validar existência
-	if [[ ! -f "$theme_file" ]]; then
-		echo "Erro: Tema '$theme_name' não encontrado em $THEME_DIR"
+	theme_file=$(find_theme_file "$theme_name")
+
+	if [[ -z "$theme_file" ]]; then
+		echo "Erro: Tema '$theme_name' não encontrado"
+		echo "  Buscado em:"
+		echo "    - $USER_THEME_DIR"
+		echo "    - $GLOBAL_THEME_DIR"
+		echo "    - $SYSTEM_THEME_DIR"
 		return 1
 	fi
 
-	# Validar formato YAML
 	if ! validate_theme_file "$theme_file"; then
 		return 1
 	fi
 
-	# Carregar variáveis do tema usando yq
 	THEME_NAME=$(yq -r '.name' "$theme_file" 2>/dev/null || echo "$theme_name")
 	THEME_DESCRIPTION=$(yq -r '.description' "$theme_file" 2>/dev/null || echo "Sem descrição")
 	THEME_BG=$(yq -r '.colors.background' "$theme_file" 2>/dev/null)
 	THEME_FG=$(yq -r '.colors.foreground' "$theme_file" 2>/dev/null)
 	THEME_ACCENT=$(yq -r '.colors.accent' "$theme_file" 2>/dev/null)
 
-	# Validar cores obrigatórias
 	if [[ -z "$THEME_BG" ]] || [[ -z "$THEME_FG" ]] || [[ -z "$THEME_ACCENT" ]]; then
 		echo "Erro: Tema '$theme_name' incompleto (falta background, foreground ou accent)"
 		return 1
 	fi
 
-	# Exportar variáveis do tema
 	export THEME_NAME THEME_DESCRIPTION THEME_BG THEME_FG THEME_ACCENT
 
 	return 0
@@ -88,30 +113,86 @@ apply_theme_terminal() {
 	return 0
 }
 
-# Listar temas disponíveis
-list_themes() {
-	if [[ ! -d "$THEME_DIR" ]]; then
-		echo "Erro: Diretório de temas não encontrado: $THEME_DIR"
-		return 1
-	fi
+# Criar string de preview das cores do tema
+create_theme_preview() {
+	local bg="$1"
+	local fg="$2"
+	local accent="$3"
 
-	echo "🎨 Temas disponíveis:"
+	local bg_hex="${bg#\#}"
+	local fg_hex="${fg#\#}"
+	local accent_hex="${accent#\#}"
+
+	local bg_r bg_g bg_b fg_r fg_g fg_b acc_r acc_g acc_b
+	bg_r="0x${bg_hex:0:2}"
+	bg_g="0x${bg_hex:2:2}"
+	bg_b="0x${bg_hex:4:2}"
+	fg_r="0x${fg_hex:0:2}"
+	fg_g="0x${fg_hex:2:2}"
+	fg_b="0x${fg_hex:4:2}"
+	acc_r="0x${accent_hex:0:2}"
+	acc_g="0x${accent_hex:2:2}"
+	acc_b="0x${accent_hex:4:2}"
+
+	printf "\033[48;2;%d;%d;%dm▓▓▓\033[0m \033[48;2;%d;%d;%dm▓▓▓\033[0m \033[48;2;%d;%d;%dm▓▓▓\033[0m" \
+		$((16#${bg_hex:0:2})) $((16#${bg_hex:2:2})) $((16#${bg_hex:4:2})) \
+		$((16#${accent_hex:0:2})) $((16#${accent_hex:2:2})) $((16#${accent_hex:4:2})) \
+		$((16#${fg_hex:0:2})) $((16#${fg_hex:2:2})) $((16#${fg_hex:4:2}))
+}
+
+# Listar temas disponíveis com preview inline usando gum
+list_themes() {
+	declare -A seen_themes
+
+	echo ""
+	gum style --foreground "#ae998b" --bold "🎨 Temas disponíveis:"
 	echo ""
 
-	for theme_file in "$THEME_DIR"/*.yml; do
-		if [[ -f "$theme_file" ]]; then
-			local theme_name
-			theme_name=$(basename "$theme_file" .yml)
+	list_from_dir() {
+		local dir="$1"
+		local tag="$2"
 
-			local name desc
-			name=$(yq -r '.name' "$theme_file" 2>/dev/null || echo "$theme_name")
-			desc=$(yq -r '.description' "$theme_file" 2>/dev/null || echo "Sem descrição")
-
-			echo "  📦 $name ($theme_name)"
-			echo "     $desc"
-			echo ""
+		if [[ ! -d "$dir" ]]; then
+			return
 		fi
-	done
+
+		for theme_file in "$dir"/*.yml; do
+			if [[ -f "$theme_file" ]]; then
+				local theme_name
+				theme_name=$(basename "$theme_file" .yml)
+
+				if [[ -z "${seen_themes[$theme_name]:-}" ]]; then
+					seen_themes["$theme_name"]=1
+
+					local name desc bg fg accent preview
+
+					name=$(yq -r '.name' "$theme_file" 2>/dev/null || echo "$theme_name")
+					desc=$(yq -r '.description' "$theme_file" 2>/dev/null || echo "Sem descrição")
+					bg=$(yq -r '.colors.background' "$theme_file" 2>/dev/null)
+					fg=$(yq -r '.colors.foreground' "$theme_file" 2>/dev/null)
+					accent=$(yq -r '.colors.accent' "$theme_file" 2>/dev/null)
+
+					preview=$(create_theme_preview "$bg" "$fg" "$accent")
+
+					gum style \
+						--border rounded \
+						--border-foreground "$accent" \
+						--padding "0 1" \
+						--margin "0 2" \
+						--width 64 \
+						"$(gum style --foreground "$accent" --bold "📦 $name [$tag]")" \
+						"$(gum style --foreground "$fg" "$desc")" \
+						"BG: $bg  FG: $fg  ACC: $accent" \
+						"Preview: $preview"
+					echo ""
+				fi
+			fi
+		done
+	}
+
+	list_from_dir "$USER_THEME_DIR" "usuário"
+	list_from_dir "$GLOBAL_THEME_DIR" "global"
+	list_from_dir "$SYSTEM_THEME_DIR" "sistema"
 
 	return 0
 }
@@ -119,9 +200,11 @@ list_themes() {
 # Obter informações de um tema específico
 get_theme_info() {
 	local theme_name="$1"
-	local theme_file="$THEME_DIR/${theme_name}.yml"
+	local theme_file
 
-	if [[ ! -f "$theme_file" ]]; then
+	theme_file=$(find_theme_file "$theme_name")
+
+	if [[ -z "$theme_file" ]]; then
 		echo ""
 		return 1
 	fi

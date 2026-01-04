@@ -16,14 +16,23 @@ fetch_remote_theme() {
 		return 1
 	fi
 
-	local target_file="$THEME_DIR/${theme_name}.yml"
+	# Criar diretório de temas do usuário se não existir
+	mkdir -p "$USER_THEME_DIR"
+
+	local target_file="$USER_THEME_DIR/${theme_name}.yml"
 
 	echo "📡 Buscando tema remoto: $theme_name"
 	echo "   Repositório: $AURORA_PLUGIN_REPO"
 
+	if [[ -f "$target_file" ]]; then
+		echo "⚠ Tema '$theme_name' já instalado em $USER_THEME_DIR"
+		echo "   Use 'aurora remove $theme_name' primeiro se quiser substituir"
+		return 1
+	fi
+
 	# Fazer download com curl
 	if curl -fsSL --connect-timeout 30 --max-timeout 60 "${AURORA_PLUGIN_REPO}/${theme_name}.yml" -o "$target_file"; then
-		echo "✅ Tema '$theme_name' instalado com sucesso"
+		echo "✅ Tema '$theme_name' instalado em $USER_THEME_DIR"
 
 		# Validar tema baixado
 		if ! validate_theme_file "$target_file"; then
@@ -101,10 +110,12 @@ remove_theme() {
 		return 1
 	fi
 
-	local theme_file="$THEME_DIR/${theme_name}.yml"
+	# Só permite remover temas do usuário
+	local theme_file="$USER_THEME_DIR/${theme_name}.yml"
 
 	if [[ ! -f "$theme_file" ]]; then
-		echo "Erro: Tema '$theme_name' não encontrado"
+		echo "Erro: Tema '$theme_name' não encontrado em $USER_THEME_DIR"
+		echo "💡 Temas de sistema (/usr/local/share) ou globais (/etc/aurora) não podem ser removidos"
 		return 1
 	fi
 
@@ -124,7 +135,7 @@ remove_theme() {
 
 	# Remover
 	rm "$theme_file"
-	echo "✅ Tema '$theme_name' removido"
+	echo "✅ Tema '$theme_name' removido de $USER_THEME_DIR"
 
 	return 0
 }
@@ -135,7 +146,7 @@ update_themes() {
 
 	local updated_count=0
 
-	for theme_file in "$THEME_DIR"/*.yml; do
+	for theme_file in "$USER_THEME_DIR"/*.yml; do
 		if [[ -f "$theme_file" ]]; then
 			local theme_name
 			theme_name=$(basename "$theme_file" .yml)
@@ -150,10 +161,8 @@ update_themes() {
 	return 0
 }
 
-# Verificar se tema já está instalado
+# Verificar se tema já está instalado (em qualquer diretório)
 is_theme_installed() {
 	local theme_name="$1"
-	local theme_file="$THEME_DIR/${theme_name}.yml"
-
-	[[ -f "$theme_file" ]]
+	[[ -n "$(find_theme_file "$theme_name")" ]]
 }
