@@ -17,6 +17,7 @@ Aurora é um gerenciador de temas de terminal leve e poderoso, projetado para aj
 ### Instalação
 
 #### Via Pacote Tarball
+
 ```bash
 # Baixar e descompactar
 wget https://github.com/helton-godoy/aurora/releases/latest/download/aurora-3.0.0.tar.gz
@@ -28,6 +29,7 @@ sudo bash bin/aurora-install
 ```
 
 #### Via Git Clone (Desenvolvimento)
+
 ```bash
 git clone https://github.com/helton-godoy/aurora.git
 cd aurora
@@ -111,6 +113,7 @@ aurora/                     # Código fonte
 ```
 
 ### Precedência de Temas
+
 1. `~/.local/share/aurora/themes/` → Temas do usuário (maior precedência)
 2. `/etc/aurora/themes/` → Temas globais (admin)
 3. `/usr/local/share/aurora/themes/` → Temas do sistema (padrão)
@@ -152,6 +155,7 @@ bash scripts/package.sh
 ## 🤝 Contribuição
 
 Contribuições são bem-vindas! Veja:
+
 - [Guia do Desenvolvedor](docs/DEVELOPER_GUIDE.md)
 - [Instruções para Agentes de IA](AGENTS.md)
 
@@ -162,6 +166,7 @@ MIT License - Veja o arquivo [LICENSE](LICENSE) para detalhes
 ## 🍫 Sobre a Paleta Ganache
 
 Aurora inclui a paleta de cores **Ganache** exclusiva, baseada em tons de chocolate e café:
+
 - **Ganache Noir**: O mais escuro da paleta
 - **Ganache Au Lait**: Chocolate ao leite equilibrado
 - **Ganache Blanc**: Chocolate branco elegante
