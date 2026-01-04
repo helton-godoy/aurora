@@ -3,10 +3,13 @@
 ## Padrões Seguidos
 
 ### FHS (Filesystem Hierarchy Standard)
+
 Define a organização de arquivos em sistemas Unix/Linux.
 
 ### XDG Base Directory Specification
+
 Define onde aplicações devem armazenar:
+
 - Configurações: `$XDG_CONFIG_HOME` (~/.config/)
 - Dados: `$XDG_DATA_HOME` (~/.local/share/)
 - Cache: `$XDG_CACHE_HOME` (~/.cache/)
@@ -66,19 +69,22 @@ Define onde aplicações devem armazenar:
 ## Hierarquia de Precedência
 
 ### Temas (busca em ordem):
-1. `~/.local/share/aurora/themes/`   → Temas do usuário (mais alta)
-2. `/etc/aurora/themes/`             → Temas globais (adm)
+
+1. `~/.local/share/aurora/themes/` → Temas do usuário (mais alta)
+2. `/etc/aurora/themes/` → Temas globais (adm)
 3. `/usr/local/share/aurora/themes/` → Temas padrão (sistema)
 
 ### Configurações (merge):
-1. `~/.config/aurora/aurora.yml`     → Substitui valores globais
-2. `/etc/aurora/aurora.yml`          → Valores padrão do sistema
+
+1. `~/.config/aurora/aurora.yml` → Substitui valores globais
+2. `/etc/aurora/aurora.yml` → Valores padrão do sistema
 
 ---
 
 ## Exemplos de Outros Projetos
 
 ### Homebrew (macOS/Linux)
+
 ```bash
 /usr/local/bin/brew                  → Binário
 /usr/local/Homebrew/                 → Código e dados
@@ -87,6 +93,7 @@ Define onde aplicações devem armazenar:
 ```
 
 ### Pacman (Arch Linux)
+
 ```bash
 /usr/bin/pacman                      → Binário
 /usr/share/pacman/                   → Dados compartilhados
@@ -95,6 +102,7 @@ Define onde aplicações devem armazenar:
 ```
 
 ### Neovim
+
 ```bash
 /usr/bin/nvim                    → Binário
 /usr/share/nvim/                 → Código e plugins
@@ -105,6 +113,7 @@ Define onde aplicações devem armazenar:
 ```
 
 ### Starship Prompt
+
 ```bash
 /usr/local/bin/starship          → Binário
 ~/.config/starship.toml          → Configuração do usuário
@@ -115,11 +124,13 @@ Define onde aplicações devem armazenar:
 ## Benefícios desta Estrutura
 
 ### 1. Separação Clara de Responsabilidades
+
 - **Sistema**: `/usr/local/share/` (pacote, imutável)
 - **Admin**: `/etc/aurora/` (configurações globais)
 - **Usuário**: `~/.config/` e `~/.local/share/` (personalização)
 
 ### 2. Facilita Criação de Pacotes
+
 - **Debian/Ubuntu**: `dpkg`, `apt`
 - **Arch Linux**: `pacman`
 - **RedHat/CentOS**: `rpm`
@@ -129,11 +140,13 @@ Define onde aplicações devem armazenar:
 Todos esperam esta estrutura.
 
 ### 3. Multi-tenant Friendly
+
 - Cada usuário pode ter temas personalizados
 - Admin pode definir temas globais obrigatórios
 - Sistema fornece temas padrão
 
 ### 4. Backup Simples
+
 - `~/.config/aurora/` → Backup de configs
 - `~/.local/share/aurora/themes/` → Backup de temas
 - Não é necessário backup de `/usr/local/share/` (pacote)
@@ -143,14 +156,18 @@ Todos esperam esta estrutura.
 ## Configuração vs Dados
 
 ### Configuração (Settings)
+
 O que o usuário **configura**:
+
 - Preferências de comportamento
 - Opções de ativação/desativação
 - Chaves de API, tokens
 - **Local**: `~/.config/aurora/`
 
 ### Dados (Data)
+
 O que o usuário **cria** ou o sistema **gera**:
+
 - Temas personalizados
 - Backups
 - Estado atual (poderia ser `~/.local/state/`)
@@ -161,11 +178,13 @@ O que o usuário **cria** ou o sistema **gera**:
 ## Por que não usar `/etc/aurora/themes`?
 
 **Histórico**:
+
 - Tradicionalmente, `/etc/` era para **configurações** (text files)
 - Temas são **dados** (YAML com cores), não configurações
 - Porém, muitos projetos modernos aceitam temas em `/etc/` para sobreposição global
 
 **Solução Adotada**:
+
 - **Temas padrão**: `/usr/local/share/aurora/themes/` (pacote)
 - **Temas globais**: `/etc/aurora/themes/` (adm - opcional)
 - **Temas do usuário**: `~/.local/share/aurora/themes/` (pessoal)
@@ -200,6 +219,7 @@ readonly USER_THEME_DIR="$DATA_DIR/themes"
 ## Conclusão
 
 Sim, esta estrutura:
+
 1. **Segue padrões FHS + XDG** ✅
 2. **Permite configurações globais e por usuário** ✅
 3. **Facilita criação de pacotes** ✅

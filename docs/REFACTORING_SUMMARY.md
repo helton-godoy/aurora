@@ -5,6 +5,7 @@
 ### 1. Estrutura de Diretórios (FHS + XDG)
 
 #### Antes (duplicações)
+
 ```
 aurora/
 ├── bin/
@@ -27,12 +28,14 @@ aurora/
 ```
 
 **Problemas:**
+
 - 56 arquivos de temas duplicados (14 × 4)
 - 3 cópias do binário principal
 - 3 cópias do código fonte
 - Impossível manter sincronizado
 
 #### Depois (estrutura limpa)
+
 ```
 aurora/                           # Código fonte (último)
 ├── bin/
@@ -105,6 +108,7 @@ def find_theme(name):
 ### 4. Variáveis Atualizadas
 
 #### `src/config/constants.sh`
+
 ```bash
 # Sistema (FHS)
 readonly AURORA_ROOT="/usr/local/share/aurora"
@@ -128,12 +132,14 @@ readonly STATE_DIR="$XDG_STATE_HOME/aurora"
 ### 5. Funções Modificadas
 
 #### `src/core/theme_manager.sh`
+
 - ✅ `find_theme_file()` → Busca em 3 diretórios com precedência
 - ✅ `load_theme()` → Usa `find_theme_file()`
 - ✅ `list_themes()` → Lista de todos os diretórios com tags [usuário|global|sistema]
 - ✅ `get_theme_info()` → Usa `find_theme_file()`
 
 #### `src/core/plugin_manager.sh`
+
 - ✅ `fetch_remote_theme()` → Instala em `~/.local/share/aurora/themes/`
 - ✅ `remove_theme()` → Remove apenas de `~/.local/share/aurora/themes/`
 - ✅ `update_themes()` → Atualiza apenas temas do usuário
@@ -144,6 +150,7 @@ readonly STATE_DIR="$XDG_STATE_HOME/aurora"
 ### 6. Instalador Atualizado
 
 #### `bin/aurora-install`
+
 ```bash
 # Cria estrutura completa:
 /usr/local/bin/aurora                 # Wrapper
@@ -162,6 +169,7 @@ readonly STATE_DIR="$XDG_STATE_HOME/aurora"
 ### 7. Scripts de Desenvolvimento
 
 #### `aurora` (wrapper local)
+
 ```bash
 #!/bin/bash
 # Aurora CLI Entry Point (Development Wrapper)
@@ -171,6 +179,7 @@ source "$AURORA_ROOT/src/aurora.sh" && main "$@"
 ```
 
 #### `scripts/package.sh`
+
 ```bash
 # Cria: dist/aurora-3.0.0.tar.gz (68K)
 # Exclui: .git, node_modules, logs, etc.
@@ -180,37 +189,41 @@ source "$AURORA_ROOT/src/aurora.sh" && main "$@"
 
 ## 📊 Comparativo
 
-| Aspecto | Antes | Depois |
-|---------|-------|--------|
-| **Arquivos de temas** | 56 (14 × 4) | 14 |
-| **Cópias do binário** | 3 | 1 |
-| **Cópias do código** | 3 | 1 |
-| **Locais de temas** | Confuso | 3 com precedência clara |
-| **Padrão FHS** | ❌ | ✅ |
-| **Padrão XDG** | ❌ | ✅ |
-| **Empacotamento** | Manual (usr/, etc/, home/) | Simples (scripts/package.sh) |
-| **Tamanho do pacote** | ~100K+ | 68K |
+| Aspecto               | Antes                      | Depois                       |
+| --------------------- | -------------------------- | ---------------------------- |
+| **Arquivos de temas** | 56 (14 × 4)                | 14                           |
+| **Cópias do binário** | 3                          | 1                            |
+| **Cópias do código**  | 3                          | 1                            |
+| **Locais de temas**   | Confuso                    | 3 com precedência clara      |
+| **Padrão FHS**        | ❌                         | ✅                           |
+| **Padrão XDG**        | ❌                         | ✅                           |
+| **Empacotamento**     | Manual (usr/, etc/, home/) | Simples (scripts/package.sh) |
+| **Tamanho do pacote** | ~100K+                     | 68K                          |
 
 ---
 
 ## 🎯 Benefícios
 
 ### 1. Separação de Responsabilidades
+
 - **Sistema**: `/usr/local/share/` → Pacote, imutável
 - **Admin**: `/etc/aurora/` → Configurações globais
 - **Usuário**: `~/.config/` e `~/.local/share/` → Personalização
 
 ### 2. Multi-tenant Friendly
+
 - Cada usuário tem seus próprios temas
 - Admin pode definir temas globais obrigatórios
 - Sistema fornece temas padrão
 
 ### 3. Backup Simples
+
 - `~/.config/aurora/` → Backup de configs
 - `~/.local/share/aurora/themes/` → Backup de temas
 - Não precisa backup de `/usr/local/share/`
 
 ### 4. Facilita Criação de Pacotes
+
 - **Debian**: `dpkg` espera FHS
 - **Arch**: `pacman` espera XDG
 - **Snap/Flatpak**: Seguem padrões similares
@@ -220,6 +233,7 @@ source "$AURORA_ROOT/src/aurora.sh" && main "$@"
 ## 🔄 Migração
 
 ### Para Desenvolvedores
+
 ```bash
 # 1. Clonar o projeto
 git clone https://github.com/helton-godoy/aurora.git
@@ -234,6 +248,7 @@ bash scripts/setup.sh
 ```
 
 ### Para Usuários Finais
+
 ```bash
 # 1. Descompactar
 tar xzf aurora-3.0.0.tar.gz
@@ -248,6 +263,7 @@ aurora apply ganache_noir
 ```
 
 ### De Versões Anteriores
+
 ```bash
 # A instalação nova preserva:
 # - ~/.config/aurora/ (configurações)
@@ -263,21 +279,24 @@ sudo rm -rf /etc/aurora
 ## 📝 Conformidade com Padrões
 
 ### ✅ FHS (Filesystem Hierarchy Standard)
+
 - `/usr/local/bin/` → Binários
 - `/usr/local/share/` → Dados compartilhados
 - `/etc/` → Configurações globais
 
 ### ✅ XDG Base Directory Specification
+
 - `$XDG_CONFIG_HOME` → Configurações
 - `$XDG_DATA_HOME` → Dados
 - `$XDG_STATE_HOME` → Estado da aplicação
 
 ### ✅ Exemplos de Outros Projetos
-| Projeto | Estrutura |
-|---------|-----------|
-| **Neovim** | `/usr/share/nvim/`, `~/.config/nvim/`, `~/.local/share/nvim/` |
-| **Starship** | `/usr/local/bin/starship`, `~/.config/starship.toml` |
-| **Homebrew** | `/usr/local/Homebrew/`, `/etc/homebrew/`, `~/.homebrew/` |
+
+| Projeto      | Estrutura                                                     |
+| ------------ | ------------------------------------------------------------- |
+| **Neovim**   | `/usr/share/nvim/`, `~/.config/nvim/`, `~/.local/share/nvim/` |
+| **Starship** | `/usr/local/bin/starship`, `~/.config/starship.toml`          |
+| **Homebrew** | `/usr/local/Homebrew/`, `/etc/homebrew/`, `~/.homebrew/`      |
 
 ---
 
