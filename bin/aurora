@@ -1,0 +1,396 @@
+#!/bin/bash
+# ==============================================================================
+# AURORA - CLI Principal v3.0
+# Gerenciador de Temas Visuais Multi-Shell
+# ==============================================================================
+
+set -euo pipefail
+
+# ============================================================================
+# INICIALIZAÇÃO
+# ============================================================================
+
+# Detectar root do projeto
+AURORA_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+export AURORA_ROOT
+
+# Carregar todos os módulos
+source "$AURORA_ROOT/src/config/loader.sh"
+
+# ============================================================================
+# FUNÇÕES DE VALIDAÇÃO
+# ============================================================================
+
+check_dependencies() {
+    local missing_deps=()
+
+    # Verificar dependências obrigatórias
+    if ! command -v yq &>/dev/null; then
+        missing_deps+=("yq (parser YAML)")
+    fi
+
+    # Verificar dependências opcionais
+    if ! command -v gum &>/dev/null; then
+        echo "⚠ Aviso: 'gum' não instalado - UI básica será usada"
+    else
+        # gum está instalado, verificar se há TTY
+        if ! [[ -t 1 ]] && ! [[ -t 0 ]]; then
+            echo "ℹ Modo não-interativo detectado - UI simplificada"
+        fi
+    fi
+
+    if [[ ${#missing_deps[@]} -gt 0 ]]; then
+        echo "❌ Erro: Dependências faltando:"
+        for dep in "${missing_deps[@]}"; do
+            echo "   - $dep"
+        done
+        echo ""
+        echo "Instale com: sudo apt install yq"
+        exit 1
+    fi
+}
+
+# ============================================================================
+# FUNÇÕES PRINCIPAIS
+# ============================================================================
+
+show_help() {
+    clear
+    cat << 'HELP_EOF'
+╔═══════════════════════════════════════════════════════════════╗
+║                       🍫 AURORA v3.0                              ║
+║            Gerenciador de Temas Visuais Multi-Shell              ║
+╠═══════════════════════════════════════════════════════════════╣
+║                                                                       ║
+║  📚 COMANDOS DISPONÍVEIS:                                          ║
+║                                                                       ║
+║  aurora list                    - Listar temas disponíveis          ║
+║  aurora list --remote           - Listar temas no repositório     ║
+║  aurora preview <tema>          - Visualizar tema temporariamente  ║
+║  aurora apply <tema>            - Aplicar tema permanentemente   ║
+║  aurora install <tema_remoto>  - Instalar tema do repositório    ║
+║  aurora remove <tema>            - Remover tema local             ║
+║  aurora install-hooks           - Instalar hooks nos shells      ║
+║  aurora status                  - Mostrar status do sistema      ║
+║  aurora backup [list|restore]   - Gerenciar backups            ║
+║  aurora help                    - Mostrar esta ajuda           ║
+║                                                                       ║
+║  🔧 MULTI-SHELL SUPPORT:                                             ║
+║  aurora suporta Bash, Zsh e Fish                                    ║
+║                                                                       ║
+║  🖥 KMSCON SUPPORT:                                                 ║
+║  Suporte especial para terminais kmscon em servidores headless         ║
+║                                                                       ║
+╚═══════════════════════════════════════════════════════════════╝
+HELP_EOF
+}
+
+# Listar temas locais
+cmd_list() {
+    local remote_flag="${1:-}"
+
+    if [[ "$remote_flag" == "--remote" ]]; then
+        list_remote_themes
+    else
+        list_themes
+    fi
+}
+
+# Preview de tema
+cmd_preview() {
+    local theme_name="${2:-}"
+
+    if [[ -z "$theme_name" ]]; then
+        echo "❌ Erro: Nome do tema não fornecido"
+        echo ""
+        echo "Uso: aurora preview <nome_tema>"
+        exit 1
+    fi
+
+    # Carregar tema
+    if ! load_theme "$theme_name"; then
+        exit 1
+    fi
+
+    # Limpar tela
+    clear
+
+    # Aplicar cores ao terminal
+    apply_theme_terminal
+
+    # Mostrar preview
+    echo ""
+    echo "═══════════════════════════════════════════════════════════════"
+    echo "  🎨 PREVIEW: $THEME_NAME"
+    echo "═══════════════════════════════════════════════════════════════"
+    echo ""
+    echo "  📝 Descrição: $THEME_DESCRIPTION"
+    echo ""
+    echo "  🎨 Cores:"
+    echo "     Background:  $THEME_BG"
+    echo "     Foreground:  $THEME_FG"
+    echo "     Accent:      $THEME_ACCENT"
+    echo ""
+    echo "═══════════════════════════════════════════════════════════════"
+    echo ""
+    echo "  📄 Exemplo de texto:"
+    echo ""
+    echo "     Normal: Este é um texto normal"
+    echo "     Destaque: Texto com $(tput setaf 3)destaque$(tput sgr0)"
+    echo ""
+    echo "═══════════════════════════════════════════════════════════════"
+    echo ""
+    echo "  ⏱ Preview ativo por 10 segundos... Pressione qualquer tecla para sair"
+    echo ""
+
+    # Aguardar ou timeout
+    read -t 10 -n 1 2>/dev/null || true
+
+    # Resetar cores
+    echo -ne "\033]111\007" # Reset background
+    echo -ne "\033]110\007" # Reset foreground
+    echo -ne "\033[0m" # Reset all
+
+    clear
+    echo "✅ Preview finalizado"
+
+    return 0
+}
+
+# Aplicar tema permanentemente
+cmd_apply() {
+    local theme_name="${2:-}"
+
+    if [[ -z "$theme_name" ]]; then
+        echo "❌ Erro: Nome do tema não fornecido"
+        echo ""
+        echo "Uso: aurora apply <nome_tema>"
+        exit 1
+    fi
+
+    # Carregar tema
+    if ! load_theme "$theme_name"; then
+        exit 1
+    fi
+
+    echo "🔄 Aplicando tema: $THEME_NAME..."
+
+    # Backup do estado atual
+    backup_file "$STATE_FILE"
+
+    # Salvar novo estado
+    save_state "$theme_name"
+
+    # Aplicar ao terminal
+    apply_theme_terminal
+
+    # Aplicar ao kmscon se disponível
+    kmscon_apply_theme
+
+    # Aplicar hooks de shell
+    if [[ -f "$AURORA_ROOT/src/modules/hooks.sh" ]]; then
+        install_shell_hooks
+    fi
+
+    echo ""
+    echo "✅ Tema '$THEME_NAME' aplicado com sucesso!"
+    echo ""
+    echo "📋 Para ver as mudanças:"
+    echo "   • Reinicie o terminal ou execute: source ~/.bashrc (ou ~/.zshrc)"
+    echo "   • Se estiver usando kmscon, reinicie o serviço: sudo systemctl restart kmscon"
+
+    return 0
+}
+
+# Instalar tema remoto
+cmd_install() {
+    local theme_name="${2:-}"
+
+    if [[ -z "$theme_name" ]]; then
+        echo "❌ Erro: Nome do tema não fornecido"
+        echo ""
+        echo "Uso: aurora install <nome_tema>"
+        echo ""
+        echo "💡 Veja temas disponíveis com: aurora list --remote"
+        exit 1
+    fi
+
+    if ! fetch_remote_theme "$theme_name"; then
+        exit 1
+    fi
+}
+
+# Remover tema local
+cmd_remove() {
+    local theme_name="${2:-}"
+
+    if [[ -z "$theme_name" ]]; then
+        echo "❌ Erro: Nome do tema não fornecido"
+        echo ""
+        echo "Uso: aurora remove <nome_tema>"
+        echo ""
+        echo "💡 Veja temas instalados com: aurora list"
+        exit 1
+    fi
+
+    if ! remove_theme "$theme_name"; then
+        exit 1
+    fi
+}
+
+# Instalar hooks de shell
+cmd_install_hooks() {
+    if [[ -f "$AURORA_ROOT/src/modules/hooks.sh" ]]; then
+        install_shell_hooks
+        echo "✅ Hooks instalados!"
+    else
+        echo "❌ Erro: Módulo hooks.sh não encontrado"
+        exit 1
+    fi
+}
+
+# Mostrar status
+cmd_status() {
+    clear
+    echo "═══════════════════════════════════════════════════════════════"
+    echo "  📊 STATUS DO AURORA"
+    echo "═══════════════════════════════════════════════════════════════"
+    echo ""
+
+    # Tema atual
+    local current_theme
+    current_theme=$(load_state)
+
+    if [[ -n "$current_theme" ]]; then
+        echo "  🎨 Tema Ativo: $current_theme"
+    else
+        echo "  ⚠ Nenhum tema aplicado"
+    fi
+    echo ""
+
+    # Dependências
+    echo "  📦 Dependências:"
+    if command -v yq &>/dev/null; then
+        echo "     ✓ yq instalado"
+    else
+        echo "     ✗ yq não instalado"
+    fi
+
+    if command -v gum &>/dev/null; then
+        echo "     ✓ gum instalado"
+    else
+        echo "     ⚠ gum não instalado (opcional)"
+    fi
+
+    if command -v starship &>/dev/null; then
+        local starship_ver
+        starship_ver=$(starship --version 2>/dev/null | head -1)
+        echo "     ✓ starship instalado ($starship_ver)"
+    else
+        echo "     ⚠ starship não instalado (opcional)"
+    fi
+    echo ""
+
+    # Ambiente
+    echo "  🖥 Ambiente:"
+    if is_kmscon; then
+        echo "     ✓ Kmscon detectado"
+    else
+        echo "     ℹ Terminal padrão (não-kmscon)"
+    fi
+
+    echo "     Shell: $SHELL"
+    echo ""
+
+    # Diretórios
+    echo "  📁 Diretórios:"
+    echo "     Raiz:     $AURORA_ROOT"
+    echo "     Temas:    $THEME_DIR"
+    echo "     Config:   $CONFIG_DIR"
+    echo ""
+
+    echo "═══════════════════════════════════════════════════════════════"
+}
+
+# Gerenciar backups
+cmd_backup() {
+    local action="${2:-list}"
+
+    case "$action" in
+        list)
+            list_backups
+            ;;
+        restore)
+            local backup_file="${3:-}"
+
+            if [[ -z "$backup_file" ]]; then
+                echo "❌ Erro: Arquivo de backup não especificado"
+                echo ""
+                echo "Uso: aurora backup restore <arquivo_backup>"
+                echo ""
+                echo "💡 Veja backups disponíveis com: aurora backup list"
+                exit 1
+            fi
+
+            restore_backup "$backup_file" "$STATE_FILE"
+            ;;
+        *)
+            echo "❌ Erro: Ação inválida '$action'"
+            echo ""
+            echo "Uso: aurora backup [list|restore]"
+            echo ""
+            echo "  list    - Listar backups disponíveis"
+            echo "  restore - Restaurar backup específico"
+            exit 1
+            ;;
+    esac
+}
+
+# ============================================================================
+# FUNÇÃO PRINCIPAL
+# ============================================================================
+
+main() {
+    # Verificar dependências
+    check_dependencies
+
+    # Roteamento de comandos
+    case "${1:-help}" in
+        list)
+            cmd_list "$2"
+            ;;
+        preview)
+            cmd_preview "$@"
+            ;;
+        apply)
+            cmd_apply "$@"
+            ;;
+        install)
+            cmd_install "$@"
+            ;;
+        remove)
+            cmd_remove "$@"
+            ;;
+        install-hooks)
+            cmd_install_hooks
+            ;;
+        status)
+            cmd_status
+            ;;
+        backup)
+            cmd_backup "$@"
+            ;;
+        help|--help|-h)
+            show_help
+            ;;
+        *)
+            echo "❌ Erro: Comando desconhecido '$1'"
+            echo ""
+            echo "💡 Use 'aurora help' para ver comandos disponíveis"
+            exit 1
+            ;;
+    esac
+}
+
+# Executar
+main "$@"

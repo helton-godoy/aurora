@@ -1,0 +1,255 @@
+#!/bin/bash
+# ==============================================================================
+# AURORA - Instalador de Dependências
+# ==============================================================================
+
+set -euo pipefail
+
+# ============================================================================
+# FUNÇÕES DE VERIFICAÇÃO
+# ============================================================================
+
+check_root() {
+    if [[ $EUID -ne 0 ]]; then
+        echo "❌ Erro: Este script deve ser executado como root"
+        echo ""
+        echo "Execute: sudo $0"
+        exit 1
+    fi
+}
+
+check_debian() {
+    if [[ ! -f /etc/debian_version ]] && [[ ! -f /etc/os-release ]]; then
+        echo "❌ Erro: Sistema não suportado (requer Debian ou baseado em Debian)"
+        exit 1
+    fi
+}
+
+# ============================================================================
+# FUNÇÕES DE INSTALAÇÃO
+# ============================================================================
+
+update_system() {
+    echo "🔄 Atualizando repositórios..."
+    apt-get update -qq
+    echo "✅ Repositórios atualizados"
+}
+
+install_yq() {
+    if command -v yq &>/dev/null; then
+        echo "✅ yq já instalado"
+        return 0
+    fi
+
+    echo "📦 Instalando yq (parser YAML)..."
+
+    # Tentar instalar via pip
+    if command -v pip3 &>/dev/null; then
+        pip3 install yq -q
+        echo "✅ yq instalado via pip3"
+        return 0
+    fi
+
+    # Fallback: baixar binário
+    local yq_url="https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64"
+    local yq_bin="/usr/local/bin/yq"
+
+    curl -fsSL "$yq_url" -o "$yq_bin"
+    chmod +x "$yq_bin"
+    echo "✅ yq instalado como binário"
+}
+
+install_gum() {
+    if command -v gum &>/dev/null; then
+        echo "✅ gum já instalado"
+        return 0
+    fi
+
+    echo "📦 Instalando gum..."
+
+    # Adicionar repositório Charm
+    mkdir -p /etc/apt/keyrings
+    curl -fsSL https://repo.charm.sh/apt/gpg.key | gpg --dearmor -o /etc/apt/keyrings/charm.gpg
+    echo "deb [signed-by=/etc/apt/keyrings/charm.gpg] https://repo.charm.sh/apt/ * *" | tee /etc/apt/sources.list.d/charm.list >/dev/null
+
+    apt-get update -qq
+    apt-get install -y gum
+
+    echo "✅ gum instalado"
+}
+
+install_starship() {
+    if command -v starship &>/dev/null; then
+        echo "✅ starship já instalado"
+        return 0
+    fi
+
+    echo "📦 Instalando Starship..."
+
+    curl -fsSL https://starship.rs/install.sh | sh -s -- --bin-dir /usr/local/bin -y
+
+    echo "✅ Starship instalado"
+}
+
+install_kmscon() {
+    if command -v kmscon &>/dev/null; then
+        echo "✅ kmscon já instalado"
+        return 0
+    fi
+
+    echo "📦 Instalando kmscon (terminal para servidores headless)..."
+
+    apt-get install -y kmscon
+
+    echo "✅ kmscon instalado"
+}
+
+install_nerd_font() {
+    # Verificar se já existe fonte Nerd
+    if fc-list 2>/dev/null | grep -qi "firacode.*nerd\|hack.*nerd\|jetbrains.*mono.*nerd"; then
+        local installed_font
+        installed_font=$(fc-list 2>/dev/null | grep -i "nerd" | head -1 | cut -d: -f2 | sed 's/^ *//')
+        echo "✅ Fonte Nerd já instalada: $installed_font"
+        return 0
+    fi
+
+    echo "📦 Instalando FiraCode Nerd Font..."
+
+    local font_cache="/tmp/aurora-fonts"
+    mkdir -p "$font_cache"
+
+    # Tentar instalar várias fontes Nerd em ordem de preferência
+    local fonts=(
+        "FiraCode:FiraCode.zip:https://github.com/ryanoasis/nerd-fonts/releases/latest/download/FiraCode.zip"
+        "Hack:Hack.zip:https://github.com/ryanoasis/nerd-fonts/releases/latest/download/Hack.zip"
+        "JetBrainsMono:JetBrainsMono.zip:https://github.com/ryanoasis/nerd-fonts/releases/latest/download/JetBrainsMono.zip"
+    )
+
+    for font_info in "${fonts[@]}"; do
+        IFS=':' read -r font_name zip_name font_url <<<"$font_info"
+
+        echo "   Tentando $font_name..."
+
+        rm -rf "$font_cache"/*
+        if curl -fsSL --connect-timeout 15 --max-timeout 60 "$font_url" -o "$font_cache/$zip_name" 2>/dev/null; then
+            if unzip -oq "$font_cache/$zip_name" -d "$font_cache" 2>/dev/null; then
+                local font_dir="/usr/local/share/fonts"
+                mkdir -p "$font_dir"
+
+                # Copiar arquivos .ttf
+                find "$font_cache" -name "*.ttf" -exec cp {} "$font_dir/" \; 2>/dev/null || true
+
+                if fc-cache -fv >/dev/null 2>&1; then
+                    sleep 1
+                    if fc-list 2>/dev/null | grep -qi "$font_name.*nerd"; then
+                        rm -rf "$font_cache"
+                        echo "✅ $font_name Nerd Font instalado"
+                        return 0
+                    fi
+                fi
+            fi
+        fi
+    done
+
+    # Fallback: tentar via apt
+    echo "   Tentando instalação via apt..."
+    local apt_fonts=("fonts-firacode" "fonts-hack" "fonts-jetbrains-mono")
+
+    for apt_font in "${apt_fonts[@]}"; do
+        if apt-cache show "$apt_font" >/dev/null 2>&1; then
+            if apt-get install -y "$apt_font" >/dev/null 2>&1; then
+                fc-cache -fv >/dev/null 2>&1
+                sleep 1
+                if fc-list 2>/dev/null | grep -qi "nerd\|$apt_font"; then
+                    rm -rf "$font_cache"
+                    echo "✅ Fonte instalada via apt: $apt_font"
+                    return 0
+                fi
+            fi
+        fi
+    done
+
+    rm -rf "$font_cache"
+    echo "⚠ Aviso: Fonte Nerd não instalada, funcionalidade de ícones reduzida"
+    return 1
+}
+
+setup_aurora_dirs() {
+    echo "📁 Criando diretórios do Aurora..."
+
+    # Diretório de temas do sistema
+    mkdir -p /etc/aurora/themes
+    mkdir -p /etc/aurora/config
+
+    # Diretório de configuração do usuário
+    mkdir -p "$HOME/.config/aurora"
+
+    echo "✅ Diretórios criados"
+}
+
+# ============================================================================
+# FUNÇÃO PRINCIPAL
+# ============================================================================
+
+main() {
+    clear
+    cat << 'BANNER'
+╔═════════════════════════════════════════════════════════════╗
+║              🍫 AURORA - INSTALADOR DE DEPENDÊNCIAS          ║
+╚═════════════════════════════════════════════════════════════╝
+BANNER
+
+    echo ""
+    echo "Este script irá instalar as dependências necessárias para o Aurora."
+    echo ""
+
+    # Verificações
+    check_debian
+
+    echo "🔍 Verificando privilégios..."
+    if [[ $EUID -eq 0 ]]; then
+        echo "✅ Executando como root"
+    else
+        echo "⚠ Aviso: Alguns pacotes podem requerer sudo"
+    fi
+    echo ""
+
+    # Atualizar sistema
+    update_system
+    echo ""
+
+    # Instalar dependências
+    echo "📦 Instalando dependências..."
+    echo ""
+
+    install_yq
+    install_gum
+    install_starship
+    install_kmscon
+    install_nerd_font
+    echo ""
+
+    # Configurar aurora
+    setup_aurora_dirs
+    echo ""
+
+    # Finalização
+    cat << 'FINAL'
+╔═════════════════════════════════════════════════════════════╗
+║                   ✅ INSTALAÇÃO CONCLUÍDA                         ║
+╚═════════════════════════════════════════════════════════════╝
+
+Próximos passos:
+  • Execute 'aurora list' para ver temas disponíveis
+  • Execute 'aurora preview <tema>' para visualizar um tema
+  • Execute 'aurora apply <tema>' para aplicar um tema
+  • Execute 'aurora install-hooks' para configurar os shells
+
+Para mais informações:
+  • aurora help
+FINAL
+
+    return 0
+}
+
+main "$@"
