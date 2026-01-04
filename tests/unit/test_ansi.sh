@@ -47,7 +47,7 @@ test_ansi_bg() {
 	local bg_output
 	bg_output=$(ansi_bg "#FF0000")
 
-	if [[ "$bg_output" =~ $'\033\[48;2;255;0;0m' ]]; then
+	if [[ "$bg_output" =~ $'\033[48;2;255;0;0m' ]]; then
 		echo "  ✓ ansi_bg() gera sequência correta"
 		return 0
 	else
@@ -62,7 +62,7 @@ test_ansi_fg() {
 	local fg_output
 	fg_output=$(ansi_fg "#00FF00")
 
-	if [[ "$fg_output" =~ $'\033\[38;2;0;255;0m' ]]; then
+	if [[ "$fg_output" =~ $'\033[38;2;0;255;0m' ]]; then
 		echo "  ✓ ansi_fg() gera sequência correta"
 		return 0
 	else
