@@ -6,17 +6,47 @@
 # Versão
 readonly SCRIPT_VERSION="3.0"
 
-# Diretórios
-readonly AURORA_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-readonly THEME_DIR="$AURORA_ROOT/themes"
-readonly SYSTEM_THEME_DIR="/etc/aurora/themes"
-readonly CONFIG_DIR="$HOME/.config/aurora"
-readonly BACKUP_DIR="$CONFIG_DIR/backups"
+# ============================================================================
+# DIRETÓRIOS DO SISTEMA (FHS)
+# ============================================================================
 
-# Arquivos de configuração
+# Diretório raiz do Aurora (auto-detectado em runtime)
+readonly AURORA_ROOT="${AURORA_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}"
+
+# Temas padrão (sistema, read-only)
+readonly SYSTEM_THEME_DIR="$AURORA_ROOT/themes"
+
+# Temas globais (admin, sobreposição)
+readonly GLOBAL_THEME_DIR="/etc/aurora/themes"
+
+# ============================================================================
+# DIRETÓRIOS DO USUÁRIO (XDG Base Directory Specification)
+# ============================================================================
+
+readonly XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
+readonly XDG_DATA_HOME="${XDG_DATA_HOME:-$HOME/.local/share}"
+readonly XDG_STATE_HOME="${XDG_STATE_HOME:-$HOME/.local/state}"
+
+# Configuração do usuário
+readonly CONFIG_DIR="$XDG_CONFIG_HOME/aurora"
+
+# Dados do usuário
+readonly DATA_DIR="$XDG_DATA_HOME/aurora"
+readonly BACKUP_DIR="$DATA_DIR/backups"
+readonly USER_THEME_DIR="$DATA_DIR/themes"
+
+# Estado da aplicação
+readonly STATE_DIR="$XDG_STATE_HOME/aurora"
 readonly STATE_FILE="$CONFIG_DIR/state.yml"
+
+# Arquivos externos
 readonly KMSCON_CONF="/etc/kmscon/kmscon.conf"
-readonly STARSHIP_CONFIG="$HOME/.config/starship.toml"
+readonly STARSHIP_CONFIG="$XDG_CONFIG_HOME/starship.toml"
+
+# Hook files
+readonly BASH_HOOK="$CONFIG_DIR/current_theme.sh"
+readonly ZSH_HOOK="$CONFIG_DIR/current_theme.sh"
+readonly FISH_HOOK="$CONFIG_DIR/current_theme.fish"
 
 # ============================================================================
 # PALETA DE CORES GANACHE (ESTRITA - NÃO ALTERAR)
@@ -54,7 +84,7 @@ readonly UI_INFO="$COLOR_SOFT_BROWN"
 # SÍMBOLOS ESPECIAIS (Fonte: github.com/helton-godoy/SpecialSymbol)
 # ============================================================================
 
-# Box Drawing - Cantos e Linhas
+# Box Drawing - Cantos e Linhas (Arredondados - Padrão)
 readonly SYM_TL="╭" # Top-left corner
 readonly SYM_TR="╮" # Top-right corner
 readonly SYM_BL="╰" # Bottom-left corner
@@ -67,15 +97,7 @@ readonly SYM_T_UP="┴"
 readonly SYM_T_RIGHT="├"
 readonly SYM_T_LEFT="┤"
 
-# Box Drawing - Estilo Duplo
-readonly SYM_DBL_TL="╔"
-readonly SYM_DBL_TR="╗"
-readonly SYM_DBL_BL="╚"
-readonly SYM_DBL_BR="╝"
-readonly SYM_DBL_H="═"
-readonly SYM_DBL_V="║"
-
-# Box Drawing - Estilo Grosso
+# Box Drawing - Estilo Grosso (para destaque)
 readonly SYM_THICK_TL="┏"
 readonly SYM_THICK_TR="┓"
 readonly SYM_THICK_BL="┗"
