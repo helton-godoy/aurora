@@ -4,7 +4,7 @@
 # Gerencia a persistência do tema atual
 # ==============================================================================
 
-STATE_FILE="$HOME/.config/aurora/state.yml"
+[[ -z "${STATE_FILE:-}" ]] && STATE_FILE="$HOME/.config/aurora/state.yml"
 
 # Salvar estado atual do tema
 save_state() {

@@ -4,7 +4,7 @@
 # Gerencia a busca e instalação de temas de repositórios remotos
 # ==============================================================================
 
-AURORA_REMOTE_REPO="https://raw.githubusercontent.com/helton-godoy/aurora/master/themes"
+[[ -z "${AURORA_REMOTE_REPO:-}" ]] && AURORA_REMOTE_REPO="https://raw.githubusercontent.com/helton-godoy/aurora/master/themes"
 
 fetch_remote_theme() {
 	local theme_name="$1"
