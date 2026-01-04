@@ -2,7 +2,7 @@
 
 # ==============================================================================
 # GitCom-Analyzer (v3.3 - Security Guard)
-# Autor: Helton Carlos Lima Godoy (UISTI/HUJM)
+# Autor: Helton Carlos Lima Godoy
 # Descrição: Analisa git, protege segredos, gerencia staging e gera prompt IA.
 # ==============================================================================
 
