@@ -1,4 +1,4 @@
-# AGENTS.md - Aurora Theme Manager
+# AGENTS.md - Aurora Theme Manager v3.0
 
 YOU MUST ALWAYS COMMUNICATE IN BRAZILIAN PORTUGUESE, REGARDLESS OF THE INPUT LANGUAGE USED.
 
@@ -12,331 +12,298 @@ YOU MUST ALWAYS COMMUNICATE IN BRAZILIAN PORTUGUESE, REGARDLESS OF THE INPUT LAN
 5. **Only then** execute the improved version of the task
 ```
 
-This file contains build/lint/test commands and code style guidelines for agentic coding agents working on the Aurora project.
+This file contains build/lint/test commands and code style guidelines for agentic coding agents working on Aurora.
 
 ## Build / Lint / Test Commands
 
 ### Core Commands
 
-- **Build**: `bash src/aurora.sh` (direct execution) or `./aurora` (from project root)
-- **Install Dependencies**: `sudo bash src/aurora.sh install` or `sudo aurora install`
-- **Test Font Detection**: `bash test_font_detection.sh`
-- **Debug Font Installation**: `bash debug_font_install.sh`
+- **Build**: `bash bin/aurora` (from project root)
+- **Install Dependencies**: `sudo bash bin/aurora-install`
+- **User Installation**: Copy to PATH: `sudo cp bin/aurora /usr/local/bin/`
 
 ### Single Test Commands
 
-- **Font Detection Test**: `bash test_font_detection.sh`
-- **Theme Validation**: `bash src/aurora.sh list` (validates theme files)
-- **Preview Test**: `bash src/aurora.sh preview ganache_lait` (tests theme preview)
+- **Run All Tests**: `bash tests/run_all.sh all`
+- **Unit Tests Only**: `bash tests/run_all.sh unit`
+- **Integration Tests Only**: `bash tests/run_all.sh integration`
+- **Specific Unit Test**: `bash tests/unit/test_ansi.sh`
+- **Specific Integration Test**: `bash tests/integration/test_theme_loading.sh`
+- **Font Detection**: `bash tests/integration/test_font_detection.sh`
 
 ### Linting & Validation
 
-- **Shell Script Linting**: `shellcheck src/*.sh src/modules/*.sh`
-- **Bash Strict Mode**: All scripts use `set -euo pipefail`
-- **Theme File Validation**: `bash src/aurora.sh list` (validates .theme files)
+- **Shell Linting**: `shellcheck src/**/*.sh bin/**/*.sh`
+- **Theme Validation**: `bash bin/aurora list` (validates .yml theme files)
+- **Strict Mode**: All scripts use `set -euo pipefail` (enforced)
 
 ## Code Style Guidelines
 
-### Shell Scripting Standards
-
-#### 1. Script Structure & Headers
+### Script Structure & Headers
 
 ```bash
 #!/bin/bash
 # ==============================================================================
-# AURORA - Module Name
-# Brief description of module purpose
+# AURORA - [Module Name]
+# [Brief description of module purpose]
 # ==============================================================================
+set -euo pipefail
 ```
 
-#### 2. Error Handling & Safety
+### Variable Naming Conventions
 
-- **Always use strict mode**: `set -euo pipefail`
-- **Function validation**: Check dependencies before execution
-- **Root privilege checks**: Use `check_root()` function for admin operations
-- **File existence checks**: Validate files before operations
-
-#### 3. Variable Naming Conventions
-
-- **Constants**: `UPPER_SNAKE_CASE` with `readonly` declaration
-- **Global variables**: `UPPER_SNAKE_CASE` (exported when needed)
-- **Local variables**: `lower_snake_case`
-- **Function names**: `lower_snake_case` with descriptive names
-- **Theme constants**: Prefix with theme name, e.g., `COLOR_GANACHE_DARK`
-
-#### 4. Function Patterns
+**Constants**: `UPPER_SNAKE_CASE` with `readonly`
 
 ```bash
-# Function with validation
-function_name() {
-    local param1="$1"
-    local param2="${2:-default_value}"
+readonly SCRIPT_VERSION="3.0"
+readonly THEME_DIR="$AURORA_ROOT/themes"
+readonly COLOR_CARAMEL="#6a4928"
+```
 
-    # Validation
-    if [[ -z "$param1" ]]; then
-        echo "Error: param1 is required" >&2
+**Global Variables**: `UPPER_SNAKE_CASE` (exported when needed)
+
+```bash
+export THEME_NAME THEME_BG THEME_FG THEME_ACCENT
+```
+
+**Local Variables**: `lower_snake_case`
+
+```bash
+local theme_name="$1"
+local theme_file="$THEME_DIR/${theme_name}.yml"
+```
+
+**Functions**: `lower_snake_case` with descriptive names
+
+```bash
+load_theme() { ... }
+apply_theme_terminal() { ... }
+```
+
+### Module Import Pattern
+
+All modules loaded via `src/config/loader.sh`:
+
+```bash
+source "$AURORA_ROOT/src/config/constants.sh"
+# Then loads core/ and modules/ automatically
+```
+
+Never hardcode module paths. Use `$AURORA_ROOT`.
+
+### Error Handling Pattern
+
+```bash
+function_with_validation() {
+    local required_param="$1"
+
+    # Validate parameters
+    if [[ -z "$required_param" ]]; then
+        echo "Error: required_param is required" >&2
         return 1
     fi
 
-    # Implementation
-    # ...
+    # Try operation
+    if ! operation_that_might_fail; then
+        echo "Error: operation failed" >&2
+        return 1
+    fi
+
+    return 0
 }
 ```
 
-#### 5. Import & Source Patterns
+### Theme File Format (YAML)
 
-- **Module imports**: Use relative paths with source validation
+```yaml
+name: "Display Name"
+description: "Brief description"
 
-```bash
-# shellcheck source=/dev/null
-source "$AURORA_ROOT/src/modules/module_name.sh"
+colors:
+  background: "#RRGGBB"
+  foreground: "#RRGGBB"
+  accent: "#RRGGBB"
+
+  palette: # Exactly 16 colors required
+    - "#RRGGBB"
+    - "#RRGGBB"
+    # ... (16 total)
 ```
 
-- **Theme loading**: Validate theme files before sourcing
+**Ganache Palette Constants** (in src/config/constants.sh):
+
+- NEVER modify these - project identity
+- All colors defined as `readonly COLOR_*`
+
+### Dependencies & Validation
+
+**Required**: `yq` (YAML parser)
+**Optional**: `gum` (UI), `starship` (prompt), `kmscon` (headless)
+
+Check before use:
 
 ```bash
-if [[ -f "$theme_file" ]]; then
-    # shellcheck source=/dev/null
-    source "$theme_file"
+if ! command -v yq &>/dev/null; then
+    echo "Error: yq not installed" >&2
+    exit 1
 fi
 ```
 
-### Code Organization
-
-#### 1. Directory Structure
+### Module Organization
 
 ```
 src/
-├── aurora.sh           # Main entry point
-└── modules/
-    ├── ansi.sh         # ANSI escape sequences
-    ├── parser.sh       # YAML/JSON parsing
-    ├── utils.sh        # Utility functions
-    ├── state.sh        # State management
-    ├── ui.sh           # User interface
-    ├── hooks.sh        # Shell integration
-    └── plugins.sh      # Plugin system
+├── config/              # Constants & loader
+│   ├── constants.sh   # Palette, paths, symbols
+│   └── loader.sh      # Auto-load all modules
+├── core/               # Main functionalities
+│   ├── theme_manager.sh       # Theme loading/validation
+│   ├── kmscon_integration.sh  # kmscon support
+│   ├── backup_manager.sh      # Backup system
+│   └── plugin_manager.sh      # Remote themes
+└── modules/            # Reusable utilities
+    ├── ansi.sh      # ANSI sequences
+    ├── parser.sh    # YAML parser (yq wrapper)
+    ├── state.sh      # State persistence
+    ├── ui.sh         # User interface (gum)
+    ├── utils.sh      # General utilities
+    └── hooks.sh      # Shell integration (Bash/Zsh/Fish)
 ```
 
-#### 2. Module Dependencies
+### Multi-Shell Support
 
-- **Core modules**: `ansi.sh`, `utils.sh` (no dependencies)
-- **Parser modules**: `parser.sh` (requires yq)
-- **UI modules**: `ui.sh` (requires gum)
-- **State modules**: `state.sh` (requires jq for JSON operations)
+Hooks support: Bash, Zsh, Fish
 
-#### 3. Theme File Format
+- Bash: `~/.bashrc` → sources `~/.config/aurora/current_theme.sh`
+- Zsh: `~/.zshrc` → sources same script (compatible)
+- Fish: `~/.config/fish/config.fish` → sources `~/.config/aurora/current_theme.fish`
+
+Theme globals (`THEME_*`) must be loaded before hook injection.
+
+### Kmscon Integration
+
+**Detection**: `is_kmscon()` checks `$TERM == "linux"` or `$KMSCON_SESSION`
+**Application**: `kmscon_apply_theme()` updates `/etc/kmscon/kmscon.conf`
+**Colors**: Format `R,G,B` (comma-separated RGB), not hex
+
+### Testing Requirements
+
+**Unit Tests**: Test individual functions
 
 ```bash
-# Theme files use .theme extension
-# Variables follow THEME_* naming convention
-THEME_NAME="Display Name"
-THEME_DESCRIPTION="Human readable description"
-BG_COLOR="#RRGGBB"
-FG_COLOR="#RRGGBB"
-ACCENT="#RRGGBB"
-KMSCON_BG="R,G,B"
-KMSCON_FG="R,G,B"
+# In tests/unit/
+test_ansi.sh       # Test ANSI sequences
+test_parser.sh     # Test YAML parsing
 ```
 
-### Dependencies & External Tools
-
-#### 1. Required System Dependencies
-
-- **kmscon**: Terminal emulator for headless servers
-- **starship**: Prompt engine
-- **gum**: Interactive UI toolkit (Charm.sh)
-- **fontconfig**: Font management
-- **curl**: Download utility
-
-#### 2. Optional Dependencies
-
-- **yq**: YAML parser (Python version preferred)
-- **jq**: JSON parser (for state management)
-- **fc-list**: Font listing utility
-
-#### 3. Dependency Checking Pattern
+**Integration Tests**: Test workflows
 
 ```bash
-check_dependency() {
-    local cmd="$1"
-    local package="$2"
+# In tests/integration/
+test_theme_loading.sh   # Test complete theme load/apply
+test_kmscon.sh         # Test kmscon integration
+```
 
-    if ! command -v "$cmd" &>/dev/null; then
-        echo "❌ ERRO: '$cmd' não está instalado."
-        echo "Instale com: sudo apt install $package"
-        exit 1
+**Test Pattern**:
+
+```bash
+test_something() {
+    if [[ condition ]]; then
+        echo "✓ Pass"
+        return 0
+    else
+        echo "✗ Fail"
+        return 1
     fi
 }
 ```
 
-### Error Handling & User Experience
+### Security & Safety
 
-#### 1. User Feedback Standards
+**Root Privileges**:
 
-- **Success messages**: Use `box_success()` function with green styling
-- **Error messages**: Use `box_error()` function with red styling
-- **Warnings**: Use `box_warning()` function with yellow styling
-- **Info messages**: Use `box_info()` function with accent color
+- `bin/aurora-install` requires root
+- `bin/aurora apply <theme>` requires root for kmscon
+- Other commands work as non-root
 
-#### 2. Interactive Elements
+**File Safety**:
 
-- **Confirmations**: Use `gum confirm` for critical operations
-- **Selections**: Use `gum choose` for theme selection
-- **Loading**: Use `gum spin` for long operations
-- **Input**: Use `gum input` for user input
+- `backup_file()` called before any modification
+- Atomic writes (temp file → move)
+- Limit backups to 10 most recent
 
-#### 3. Color & UI Constants
+### Common Patterns
+
+**Theme Loading**:
 
 ```bash
-# Ganache color palette (DO NOT ALTER)
-readonly COLOR_CARAMEL="#6a4928"
-readonly COLOR_DARK_CARAMEL="#5f4224"
-readonly COLOR_COCOA="#553a20"
-# ... (full palette defined in aurora.sh)
-
-# UI Colors
-readonly UI_BORDER="$COLOR_CARAMEL"
-readonly UI_TEXT="$COLOR_ROASTED_ALMOND"
-readonly UI_ACCENT="$COLOR_SOFT_BROWN"
-readonly UI_SUCCESS="#26a048"
-readonly UI_ERROR="#b03a24"
+# 1. Validate file exists
+# 2. Load with yq
+# 3. Validate required fields
+# 4. Export THEME_* globals
+# 5. Apply with apply_theme_terminal()
 ```
 
-### Security & System Integration
-
-#### 1. Root Privilege Management
-
-- **Installation**: Requires root for system-wide changes
-- **Theme Application**: Root required for kmscon configuration
-- **User Operations**: Non-root for preview and listing
-
-#### 2. File Safety Patterns
-
-- **Backup before modify**: Use `backup_system_config()` function
-- **Atomic operations**: Write to temp file, then move
-- **Permission checks**: Validate file permissions before operations
-
-#### 3. System Integration Points
-
-- **kmscon.conf**: `/etc/kmscon/kmscon.conf`
-- **starship.toml**: `$HOME/.config/starship.toml`
-- **bashrc**: `$HOME/.bashrc`
-- **Theme directory**: `/etc/aurora/themes/`
-
-### Testing & Validation
-
-#### 1. Test Categories
-
-- **Unit tests**: Individual module functions
-- **Integration tests**: Theme application workflow
-- **System tests**: Font detection and installation
-- **UI tests**: Interactive elements and user experience
-
-#### 2. Validation Patterns
+**Backup Pattern**:
 
 ```bash
-# Theme file validation
-validate_theme_file() {
-    local theme_file="$1"
-
-    # Required variables check
-    local required_vars=("THEME_NAME" "BG_COLOR" "FG_COLOR" "ACCENT")
-    for var in "${required_vars[@]}"; do
-        if ! grep -q "^$var=" "$theme_file"; then
-            echo "Error: Missing required variable $var in $theme_file"
-            return 1
-        fi
-    done
+backup_file() {
+    local file="$1"
+    local backup_file="$BACKUP_DIR/$(basename $file).$(date +%Y%m%d_%H%M%S).bak"
+    cp "$file" "$backup_file"
+    cleanup_old_backups  # Keep only 10
 }
 ```
 
-#### 3. Debugging Tools
+**Error Messages**: Use `echo "..." >&2` for errors, `echo "..."` for info.
 
-- **Font detection**: `test_font_detection.sh`
-- **Installation debugging**: `debug_font_install.sh`
-- **Theme validation**: `aurora list` command
+### Cursor Rules
 
-### Performance & Optimization
+See `.cursor/rules/cursor_rules.mdc` for:
 
-#### 1. Resource Management
+- General coding standards
+- File structure requirements
+- Import/export patterns
 
-- **Minimal dependencies**: Prefer system tools over external packages
-- **Efficient parsing**: Use grep/sed for simple operations, jq/yq for complex data
-- **Caching**: Cache font detection results and theme listings
+### Environment Variables
 
-#### 2. Startup Optimization
+- `AURORA_ROOT`: Auto-detected project root
+- `THEME_DIR`: Location of YAML themes (`$AURORA_ROOT/themes`)
+- `AURORA_PLUGIN_REPO`: Override remote theme repo URL
+- `AURORA_DEBUG`: Set to `1` for debug output
 
-- **Lazy loading**: Load modules only when needed
-- **Early validation**: Check dependencies at startup
-- **Fast fallbacks**: Provide alternatives when optional tools are missing
+### Quick Reference
 
-### Documentation & Maintenance
+**Add New Theme**:
 
-#### 1. Code Documentation
+1. Create YAML in `themes/` (follow format)
+2. Test: `bash bin/aurora preview theme_name`
+3. Validate contrast is WCAG AA compliant (≥ 4.5:1)
 
-- **Function headers**: Describe purpose, parameters, return values
-- **Inline comments**: Explain complex logic and calculations
-- **TODO markers**: Use `# TODO:` for future improvements
+**Add New Core Module**:
 
-#### 2. Version Management
+1. Create in `src/core/` or `src/modules/`
+2. Follow header pattern
+3. Add dependency checks if needed
+4. Auto-loaded by `loader.sh`
 
-- **Script version**: Define `SCRIPT_VERSION` constant
-- **Theme versioning**: Include version in theme files
-- **Backward compatibility**: Maintain compatibility with older theme formats
+**Test Changes**:
 
-#### 3. Development Workflow
+```bash
+# Run all tests
+bash tests/run_all.sh all
 
-- **Feature branches**: Use descriptive branch names
-- **Commit messages**: Follow conventional commit format
-- **Testing**: Run validation scripts before commits
+# Lint
+shellcheck src/**/*.sh
+```
 
-## Cursor Rules Integration
+### Prohibited Actions
 
-This project follows Cursor rules defined in `.cursor/rules/`:
-
-- **cursor_rules.mdc**: General coding standards and file structure
-- **taskmaster.mdc**: Task management and development workflow
-- **dev_workflow.mdc**: Development process and best practices
-
-## Environment Variables
-
-- **AURORA_ROOT**: Project root directory (auto-detected)
-- **AURORA_THEME**: Override current theme for session
-- **AURORA_HOME**: Installation directory (default: /etc/aurora)
-- **FORCE_INSTALL**: Skip installation confirmations (set to "true")
-
-## Common Pitfalls to Avoid
-
-1. **Don't hardcode paths**: Use defined constants and environment variables
-2. **Don't skip validation**: Always check dependencies and file existence
-3. **Don't ignore errors**: Use proper error handling and user feedback
-4. **Don't modify system files without backup**: Always use backup functions
-5. **Don't break the color palette**: Never modify the Ganache color constants
-6. **Don't assume root privileges**: Check and handle privilege levels appropriately
-7. **Don't ignore shell compatibility**: Use bash-specific features intentionally
-8. **Don't skip testing**: Validate changes with test scripts before committing
-
-## Quick Reference for Common Tasks
-
-### Adding a New Theme
-
-1. Create theme file in `/etc/aurora/themes/`
-2. Follow theme file format with required variables
-3. Test with `aurora list` and `aurora preview <theme_name>`
-4. Validate color contrast with built-in WCAG validation
-
-### Adding a New Module
-
-1. Create file in `src/modules/`
-2. Follow naming convention and header format
-3. Add dependency checks if required
-4. Source module in main script with validation
-
-### Modifying Core Functions
-
-1. Check for existing usage patterns
-2. Maintain backward compatibility
-3. Update documentation and comments
-4. Test with all theme variations
-5. Run validation scripts before committing
+1. NEVER modify Ganache palette constants
+2. NEVER hardcode paths (use `$AURORA_ROOT`)
+3. NEVER skip parameter validation
+4. NEVER modify system files without `backup_file()`
+5. NEVER use deprecated `.theme` format (YAML only)
+6. NEVER bypass `loader.sh` - it manages all modules
+7. NEVER ignore `set -euo pipefail`
+8. NEVER break existing multi-shell hooks
