@@ -24,6 +24,11 @@ node_modules/
 # OS specific
 .DS_Store
 
+# System directories (created during installation)
+usr/
+etc/
+home/
+
 # Task files
 # tasks.json
 # tasks/ 

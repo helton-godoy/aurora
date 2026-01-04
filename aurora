@@ -1,0 +1,4 @@
+#!/bin/bash
+# Aurora CLI Entry Point (Development Wrapper)
+export AURORA_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+"$AURORA_ROOT/src/aurora.sh" "$@"
