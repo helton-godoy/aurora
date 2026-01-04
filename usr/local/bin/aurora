@@ -302,6 +302,30 @@ install_dependencies() {
 	clear
 	show_banner
 
+	# ⚠️ AVISO DE SEGURANÇA IMPORTANTE
+	box_warning "⚠️  AVISO DE SEGURANÇA IMPORTANTE
+
+O Aurora foi atualizado com correções de segurança após
+detectar conflitos críticos com kmscon que causavam
+tela preta no sistema.
+
+🔧 CORREÇÕES IMPLEMENTADAS:
+  • Configuração kmscon segura (sem TrueColor por padrão)
+  • Verificação de fonte antes de configuração
+  • Serviço systemd removido para evitar conflitos no boot
+  • Aplicação manual de temas (mais segura)
+
+🚨 ANTES DE CONTINUAR:
+  • Certifique-se de ter um backup do sistema
+  • Teste primeiro com 'aurora preview <tema>'
+  • Aplique temas permanentemente apenas se satisfeito
+
+Deseja continuar com a instalação?"
+	if ! gum confirm "Continuar com a instalação?" --default=false; then
+		box_info "Instalação cancelada pelo usuário."
+		exit 0
+	fi
+
 	box_info "Iniciando instalação das dependências do AURORA..."
 	echo
 
@@ -369,50 +393,94 @@ $SYM_ARROW_POINT Próximos passos:
 }
 
 install_nerd_font() {
-	local font_name="FiraCodeNerdFont"
-	local font_file="$FONT_DIR/${font_name}-Regular.ttf"
 	local cache_dir="/var/cache/aurora/fonts"
-	local font_url="https://github.com/ryanoasis/nerd-fonts/releases/latest/download/FiraCode.zip"
+	mkdir -p "$cache_dir" "$FONT_DIR"
 
-	# Verificar se já está instalada
-	if fc-list 2>/dev/null | grep -qi "FiraCode.*Nerd"; then
-		gum style --foreground "$UI_ACCENT" "  $SYM_CHOCOLATE FiraCode Nerd Font já está instalada"
+	# Verificar se já existe uma fonte adequada instalada
+	if fc-list 2>/dev/null | grep -qi "firacode.*nerd\|hack.*nerd\|source.*code.*pro.*nerd\|jetbrains.*mono.*nerd\|cascadia.*code.*nerd"; then
+		local installed_font
+		installed_font=$(fc-list 2>/dev/null | grep -i "nerd" | head -1 | cut -d: -f2 | sed 's/^ *//')
+		gum style --foreground "$UI_ACCENT" "  $SYM_CHOCOLATE Fonte Nerd já instalada: $installed_font"
 		return 0
 	fi
 
-	mkdir -p "$cache_dir" "$FONT_DIR"
-	show_loading "Baixando FiraCode Nerd Font..."
+	show_loading "Instalando fonte Nerd Font..."
 
-	# Tentar 3 vezes com backoff exponencial
-	local attempt=1
-	local delay=2
-	while [[ $attempt -le 3 ]]; do
-		if curl -fsSL --connect-timeout 10 "$font_url" -o "$cache_dir/FiraCode.zip" 2>/dev/null; then
-			unzip -oq "$cache_dir/FiraCode.zip" -d "$cache_dir" 2>/dev/null || true
-			cp "$cache_dir"/*.ttf "$FONT_DIR/" 2>/dev/null || true
-			fc-cache -fv >/dev/null 2>&1
-			rm -rf "$cache_dir"
-			gum style --foreground "$UI_SUCCESS" "  $SYM_SUCCESS FiraCode Nerd Font instalada"
-			return 0
-		else
-			gum style --foreground "$UI_WARNING" "  $SYM_WARN Tentativa $attempt falhou, tentando novamente em ${delay}s..."
-			sleep $delay
-			delay=$((delay * 2))
+	# Lista de fontes para tentar (prioridade: FiraCode, Hack, JetBrains, Cascadia)
+	local fonts=(
+		"FiraCode:FiraCode.zip:https://github.com/ryanoasis/nerd-fonts/releases/latest/download/FiraCode.zip"
+		"Hack:Hack.zip:https://github.com/ryanoasis/nerd-fonts/releases/latest/download/Hack.zip"
+		"JetBrainsMono:JetBrainsMono.zip:https://github.com/ryanoasis/nerd-fonts/releases/latest/download/JetBrainsMono.zip"
+		"CascadiaCode:CascadiaCode.zip:https://github.com/ryanoasis/nerd-fonts/releases/latest/download/CascadiaCode.zip"
+	)
+
+	# Tentar instalar cada fonte
+	for font_info in "${fonts[@]}"; do
+		IFS=':' read -r font_name zip_name font_url <<<"$font_info"
+
+		gum style --foreground "$UI_INFO" "  $SYM_INFO Tentando instalar $font_name..."
+
+		# Limpar cache anterior
+		rm -rf "$cache_dir"/*
+		mkdir -p "$cache_dir"
+
+		# Tentar download com múltiplas tentativas
+		local attempt=1
+		local max_attempts=3
+		local success=false
+
+		while [[ $attempt -le $max_attempts ]] && [[ $success == false ]]; do
+			if curl -fsSL --connect-timeout 15 --max-time 60 "$font_url" -o "$cache_dir/$zip_name" 2>/dev/null; then
+				# Extrair e instalar
+				if unzip -oq "$cache_dir/$zip_name" -d "$cache_dir" 2>/dev/null; then
+					# Copiar apenas arquivos .ttf para o diretório de fontes
+					find "$cache_dir" -name "*.ttf" -exec cp {} "$FONT_DIR/" \; 2>/dev/null || true
+
+					# Atualizar cache de fontes
+					if fc-cache -fv >/dev/null 2>&1; then
+						# Verificar se a fonte foi instalada corretamente
+						sleep 1
+						if fc-list 2>/dev/null | grep -qi "$font_name.*nerd"; then
+							rm -rf "$cache_dir"
+							gum style --foreground "$UI_SUCCESS" "  $SYM_SUCCESS $font_name Nerd Font instalada com sucesso"
+							return 0
+						fi
+					fi
+				fi
+			fi
+
+			if [[ $attempt -lt $max_attempts ]]; then
+				gum style --foreground "$UI_WARNING" "  $SYM_WARN Tentativa $attempt falhou, tentando novamente..."
+				sleep 2
+			fi
 			((attempt++))
+		done
+
+		gum style --foreground "$UI_WARNING" "  $SYM_WARN Falha ao instalar $font_name, tentando próxima fonte..."
+	done
+
+	# Fallback: tentar instalar via apt se disponível
+	gum style --foreground "$UI_INFO" "  $SYM_INFO Tentando instalar via apt..."
+
+	local apt_fonts=("fonts-firacode" "fonts-hack" "fonts-jetbrains-mono" "fonts-cascadia-code")
+	for apt_font in "${apt_fonts[@]}"; do
+		if apt-cache show "$apt_font" >/dev/null 2>&1; then
+			if apt install -y "$apt_font" >/dev/null 2>&1; then
+				fc-cache -fv >/dev/null 2>&1
+				sleep 1
+				if fc-list 2>/dev/null | grep -qi "nerd\|hack\|firacode\|jetbrains\|cascadia"; then
+					rm -rf "$cache_dir"
+					gum style --foreground "$UI_SUCCESS" "  $SYM_SUCCESS Fonte instalada via apt: $apt_font"
+					return 0
+				fi
+			fi
 		fi
 	done
 
-	# Fallback: tentar URL alternativa (arquivo único)
-	local fallback_url="https://github.com/ryanoasis/nerd-fonts/raw/master/patched-fonts/FiraCode/Regular/FiraCodeNerdFont-Regular.ttf"
-	if curl -fsSL --connect-timeout 15 "$fallback_url" -o "$font_file" 2>/dev/null; then
-		fc-cache -fv >/dev/null 2>&1
-		rm -rf "$cache_dir"
-		gum style --foreground "$UI_SUCCESS" "  $SYM_SUCCESS FiraCode Nerd Font instalada (fallback)"
-		return 0
-	fi
-
+	# Último fallback: tentar fonte básica do sistema
 	rm -rf "$cache_dir"
-	gum style --foreground "$UI_ERROR" "  $SYM_ERROR Falha ao instalar FiraCode Nerd Font após 3 tentativas"
+	gum style --foreground "$UI_WARNING" "  $SYM_WARN Nenhuma fonte Nerd Font pôde ser instalada"
+	gum style --foreground "$UI_INFO" "  $SYM_INFO Usando fontes padrão do sistema (funcionalidade reduzida)"
 	return 1
 }
 
@@ -420,46 +488,59 @@ configure_kmscon() {
 	show_loading "Configurando kmscon..."
 	mkdir -p "/etc/kmscon"
 
-	cat >"$KMSCON_CONF" <<'KMSCON_EOF'
+	# Verificar se FiraCode Nerd Font está disponível antes de configurar
+	local font_available=false
+	if fc-list 2>/dev/null | grep -qi "firacode.*nerd"; then
+		font_available=true
+	fi
+
+	cat >"$KMSCON_CONF" <<KMSCON_EOF
 # ============================================================================
 # Configuração do KMSCON para AURORA
 # Gerado automaticamente - Não edite manualmente
 # ============================================================================
 
-# Fonte
-font-name=FiraCode Nerd Font
-font-size=14
-font-force-scalable=true
+# Fonte - Usar fonte segura se FiraCode não estiver disponível
+$(if [[ "\$font_available" == "true" ]]; then
+	echo "font-name=FiraCode Nerd Font"
+	echo "font-size=12"
+	echo "font-force-scalable=true"
+else
+	echo "# FiraCode Nerd Font não encontrada - usando fonte padrão do sistema"
+	echo "# font-name=FiraCode Nerd Font"
+	echo "# font-size=12"
+	echo "# font-force-scalable=true"
+fi)
 
-# Cores (TrueColor)
-color-truecolor=true
+# Cores (TrueColor) - Desabilitado por segurança
+# color-truecolor=true
 
-# Paleta de 16 cores (baseada em Ganache)
-color-0=11,7,4        # Black (Deep Dark)
-color-1=176,58,36     # Red
-color-2=38,160,72     # Green
-color-3=185,118,29    # Yellow/Brown
-color-4=33,113,181    # Blue
-color-5=137,62,178    # Magenta
-color-6=40,142,185    # Cyan
-color-7=190,173,162   # White (Roasted Almond)
-color-8=106,73,40     # Bright Black (Caramel)
-color-9=255,85,85     # Bright Red
-color-10=85,255,85    # Bright Green
-color-11=222,214,209  # Bright Yellow (Milk Foam)
-color-12=85,85,255    # Bright Blue
-color-13=255,85,255   # Bright Magenta
-color-14=85,255,255   # Bright Cyan
-color-15=239,235,232  # Bright White (White Chocolate)
+# Paleta de 16 cores básica (compatível com kmscon)
+color-0=0,0,0          # Black
+color-1=255,0,0        # Red
+color-2=0,255,0        # Green
+color-3=255,255,0      # Yellow
+color-4=0,0,255        # Blue
+color-5=255,0,255      # Magenta
+color-6=0,255,255      # Cyan
+color-7=255,255,255    # White
+color-8=128,128,128    # Bright Black
+color-9=255,128,128    # Bright Red
+color-10=128,255,128   # Bright Green
+color-11=255,255,128   # Bright Yellow
+color-12=128,128,255   # Bright Blue
+color-13=255,128,255   # Bright Magenta
+color-14=128,255,255   # Bright Cyan
+color-15=255,255,255   # Bright White
 
-# Console
+# Console - Configurações mínimas para evitar conflitos
 console=true
-xkb-layout=us
-xkb-variant=
-xkb-options=caps:escape
+# xkb-layout=us
+# xkb-variant=
+# xkb-options=caps:escape
 KMSCON_EOF
 
-	gum style --foreground "$UI_SUCCESS" "  ✅ kmscon configurado"
+	gum style --foreground "$UI_SUCCESS" "  ✅ kmscon configurado com segurança"
 }
 
 configure_bashrc() {
@@ -606,26 +687,22 @@ create_systemd_service() {
 		return 1
 	fi
 
-	cat >/etc/systemd/system/aurora-kmscon.service <<'SYSTEMD_EOF'
-[Unit]
-Description=Aurora KMSCON Theme Engine
-After=systemd-user-sessions.service plymouth-quit.service
-Wants=multi-user.target
+	# ⚠️ AVISO: Serviço systemd desabilitado por segurança
+	# O serviço pode causar conflitos durante o boot do sistema
+	# Os temas serão aplicados manualmente via comandos aurora
 
-[Service]
-Type=oneshot
-ExecStart=/usr/local/bin/aurora apply-current
-RemainAfterExit=yes
-StandardOutput=journal
-StandardError=journal
+	gum style --foreground "$UI_WARNING" "  $SYM_WARN Serviço systemd desabilitado por segurança"
+	gum style --foreground "$UI_INFO" "  $SYM_INFO Use 'sudo aurora apply <tema>' para aplicar temas"
 
-[Install]
-WantedBy=multi-user.target
-SYSTEMD_EOF
+	# Remover serviço se existir (para limpeza)
+	if [[ -f "/etc/systemd/system/aurora-kmscon.service" ]]; then
+		systemctl disable aurora-kmscon.service 2>/dev/null || true
+		rm -f "/etc/systemd/system/aurora-kmscon.service" 2>/dev/null || true
+		systemctl daemon-reload 2>/dev/null || true
+	fi
 
-	systemctl daemon-reload
-	systemctl enable aurora-kmscon.service 2>/dev/null || true
-	gum style --foreground "$UI_SUCCESS" "  $SYM_SUCCESS Serviço systemd configurado"
+	# Não criar o serviço - usar abordagem manual segura
+	return 0
 }
 
 # ============================================================================
