@@ -131,7 +131,7 @@ install_nerd_font() {
         echo "   Tentando $font_name..."
 
         rm -rf "$font_cache"/*
-        if curl -fsSL --connect-timeout 15 --max-timeout 60 "$font_url" -o "$font_cache/$zip_name" 2>/dev/null; then
+        if curl_output=$(curl -fsSL --connect-timeout 15 --max-time 30 "$font_url" -o "$font_cache/$zip_name" 2>&1); then
             if unzip -oq "$font_cache/$zip_name" -d "$font_cache" 2>/dev/null; then
                 local font_dir="/usr/local/share/fonts"
                 mkdir -p "$font_dir"
@@ -147,7 +147,9 @@ install_nerd_font() {
                         return 0
                     fi
                 fi
-            fi
+            else
+            echo "   ❌ Erro no download: $(echo "$curl_output" | head -1)"
+        fi
         fi
     done
 
@@ -160,7 +162,7 @@ install_nerd_font() {
             if apt-get install -y "$apt_font" >/dev/null 2>&1; then
                 fc-cache -fv >/dev/null 2>&1
                 sleep 1
-                if fc-list 2>/dev/null | grep -qi "nerd\|$apt_font"; then
+                if fc-list 2>/dev/null | grep -qi "nerd\|firacode\|hack\|jetbrains.*mono"; then
                     rm -rf "$font_cache"
                     echo "✅ Fonte instalada via apt: $apt_font"
                     return 0
@@ -195,7 +197,7 @@ main() {
     clear
     cat << 'BANNER'
 ╔═════════════════════════════════════════════════════════════╗
-║              🍫 AURORA - INSTALADOR DE DEPENDÊNCIAS          ║
+║           🍫 AURORA - INSTALADOR DE DEPENDÊNCIAS            ║
 ╚═════════════════════════════════════════════════════════════╝
 BANNER
 
@@ -236,7 +238,7 @@ BANNER
     # Finalização
     cat << 'FINAL'
 ╔═════════════════════════════════════════════════════════════╗
-║                   ✅ INSTALAÇÃO CONCLUÍDA                         ║
+║                ✅ INSTALAÇÃO CONCLUÍDA                      ║
 ╚═════════════════════════════════════════════════════════════╝
 
 Próximos passos:
