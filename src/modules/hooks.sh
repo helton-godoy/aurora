@@ -14,14 +14,20 @@ inject_hook_to_rc() {
 		hook_line="if test -f \$HOME/.config/aurora/current_theme.fish; source \$HOME/.config/aurora/current_theme.fish; end"
 	fi
 
-	if [ -f "$rc_file" ]; then
-		if ! grep -q "aurora/current_theme" "$rc_file"; then
-			backup_file "$rc_file"
-			echo -e "\n# >>> Aurora Theme Hook >>>\n$hook_line\n# <<< Aurora Theme Hook <<<" >>"$rc_file"
-			echo "Hook injetado em $rc_file"
-		else
-			echo "Hook já existe em $rc_file"
-		fi
+	# Validar que o arquivo de RC existe antes de tentar injetar
+	if [[ ! -f "$rc_file" ]]; then
+		echo "Aviso: Arquivo de configuração $rc_file não encontrado, criando..."
+		mkdir -p "$(dirname "$rc_file")"
+		touch "$rc_file"
+	fi
+
+	# Verificar se hook já existe
+	if ! grep -q "aurora/current_theme" "$rc_file" 2>/dev/null; then
+		backup_file "$rc_file" 2>/dev/null || true
+		echo -e "\n# >>> Aurora Theme Hook >>>\n$hook_line\n# <<< Aurora Theme Hook <<<" >>"$rc_file"
+		echo "✅ Hook injetado em $rc_file"
+	else
+		echo "ℹ Hook já existe em $rc_file"
 	fi
 }
 
@@ -58,33 +64,53 @@ EOF
 
 apply_shell_hooks() {
 	local theme_name="$1"
-	load_theme "$theme_name"
+
+	# Verificar se o tema foi carregado
+	if [[ -z "$THEME_NAME" ]]; then
+		echo "Aviso: Tema não carregado, tentando carregar $theme_name..."
+		if ! load_theme "$theme_name"; then
+			echo "Erro: Não foi possível carregar tema $theme_name"
+			return 1
+		fi
+	fi
 
 	local target_dir="$HOME/.config/aurora"
 	mkdir -p "$target_dir"
 
-	# 1. Script para Bash/Zsh
+	#1. Script para Bash/Zsh
 	cat >"$target_dir/current_theme.sh" <<EOF
-# Gerado por Aurora para $theme_name
+# Gerado por Aurora para $THEME_NAME ($theme_name)
 export AURORA_THEME="$theme_name"
 alias aurora-theme-apply="source $target_dir/current_theme.sh"
 
+# Aplicar cores ANSI se for terminal Linux
 if [[ "\$TERM" == "linux" ]]; then
-    echo -ne "\033]P0$(echo ${THEME_BG#\#})"
+    echo -ne "\033]11;${THEME_BG#\#}\007"
+    echo -ne "\033]10;${THEME_FG#\#}\007"
 fi
 
+# Apontar para configuração Starship
 export STARSHIP_CONFIG="$target_dir/starship.toml"
 EOF
 
-	# 2. Script para Fish
+	#2. Script para Fish
 	cat >"$target_dir/current_theme.fish" <<EOF
-# Gerado por Aurora para $theme_name
+# Gerado por Aurora para $THEME_NAME ($theme_name)
 set -gx AURORA_THEME "$theme_name"
 alias aurora-theme-apply="source $target_dir/current_theme.fish"
 
+# Aplicar cores ANSI se for terminal Linux
+if test "\$TERM" = "linux"
+    echo -ne "\033]11;${THEME_BG#\#}\007"
+    echo -ne "\033]10;${THEME_FG#\#}\007"
+end
+
+# Apontar para configuração Starship
 set -gx STARSHIP_CONFIG "$target_dir/starship.toml"
 EOF
 
-	# 3. Gerar Starship dinâmico
+	#3. Gerar Starship dinâmico
 	generate_starship_config "$theme_name"
+
+	echo "✅ Hooks de shell configurados para: Bash, Zsh, Fish"
 }
